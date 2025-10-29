@@ -488,7 +488,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
 // Store pending confirmations
 const pendingConfirmations = new Map<string, { action: string; data: any; expires: number }>();
 
-// Handle admin commands via natural language
+// Handle admin commands via natural language with AI intent detection
 async function handleAdminCommand(message: Message, userMessage: string): Promise<boolean> {
   const lowerMessage = userMessage.toLowerCase();
   
@@ -500,7 +500,7 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
       
       if (pending.action === 'delete_channel') {
         try {
-          await message.reply(`✅ Eliminando este canal en 3 segundos...`);
+          await message.reply(`✅ Deleting this channel in 3 seconds...`);
           setTimeout(async () => {
             if ('delete' in message.channel) {
               await message.channel.delete(`Deleted by ${message.author.username} via bot command`);
@@ -509,12 +509,12 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
           return true;
         } catch (error) {
           console.error("Error deleting channel:", error);
-          await message.reply(`❌ Error al eliminar el canal.`);
+          await message.reply(`❌ Error deleting channel.`);
           return true;
         }
       }
     } else {
-      await message.reply(`⏰ No hay ninguna acción pendiente de confirmar o expiró.`);
+      await message.reply(`⏰ No pending action to confirm or it expired.`);
       return true;
     }
   }
@@ -523,79 +523,89 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
     const pending = pendingConfirmations.get(message.author.id);
     if (pending) {
       pendingConfirmations.delete(message.author.id);
-      await message.reply(`❌ Acción cancelada.`);
+      await message.reply(`❌ Action cancelled.`);
       return true;
     }
   }
   
-  // Delete messages command - must explicitly say "mensajes" or "messages" with a number
-  if ((lowerMessage.includes("borrar") || lowerMessage.includes("eliminar") || lowerMessage.includes("delete") || lowerMessage.includes("clear") || lowerMessage.includes("purge")) && 
-      (lowerMessage.includes("mensaje") || lowerMessage.includes("message"))) {
+  // 1. DELETE/CLEAR MESSAGES - Ultra flexible patterns
+  if (/(?:delete|clear|remove|borrar|eliminar|purge|clean|wipe)/i.test(lowerMessage) && 
+      /(?:message|msg|chat|all|everything|todo|sent|i'?ve sent)/i.test(lowerMessage)) {
+    
+    // Try to find a number in the message
     const numberMatch = userMessage.match(/(\d+)/);
-    if (numberMatch && 'bulkDelete' in message.channel) {
-      const amount = parseInt(numberMatch[1]);
-      if (amount > 0 && amount <= 100) {
-        try {
-          const deleted = await message.channel.bulkDelete(amount, true);
-          const reply = await message.channel.send(`✅ Eliminé ${deleted.size} mensajes`);
-          setTimeout(() => reply.delete().catch(() => {}), 3000);
-          return true;
-        } catch (error) {
-          console.error("Error deleting messages:", error);
-          await message.reply(`❌ Error al eliminar mensajes. Asegúrate de que tenga permisos de Manage Messages.`);
-          return true;
-        }
-      } else {
-        await message.reply(`❌ Especifica un número entre 1 y 100.`);
+    let amount = numberMatch ? parseInt(numberMatch[1]) : 100; // Default to 100 if no number
+    
+    // If they say "all" or "everything", fetch and delete maximum
+    if (/(?:all|everything|todo|todos)/i.test(lowerMessage)) {
+      amount = 100; // Discord API limit
+    }
+    
+    if ('bulkDelete' in message.channel) {
+      try {
+        const deleted = await message.channel.bulkDelete(Math.min(amount, 100), true);
+        const reply = await message.channel.send(`✅ Cleared ${deleted.size} messages`);
+        setTimeout(() => reply.delete().catch(() => {}), 3000);
+        return true;
+      } catch (error) {
+        console.error("Error deleting messages:", error);
+        await message.reply(`❌ Error deleting messages. Make sure I have Manage Messages permission.`);
         return true;
       }
     }
   }
   
-  // Delete channel command - requires explicit "canal" or "channel" keyword AND confirmation
-  if ((lowerMessage.includes("borrar") || lowerMessage.includes("eliminar") || lowerMessage.includes("delete") || lowerMessage.includes("remove")) && 
-      (lowerMessage.includes("canal") || lowerMessage.includes("channel")) &&
-      !lowerMessage.includes("mensaje") && !lowerMessage.includes("message")) {
-    if ('delete' in message.channel) {
-      // Ask for confirmation
-      pendingConfirmations.set(message.author.id, {
-        action: 'delete_channel',
-        data: { channelId: message.channel.id },
-        expires: Date.now() + 30000 // 30 seconds to confirm
-      });
-      
-      await message.reply(`⚠️ **CONFIRMACIÓN REQUERIDA**\n¿Estás seguro de que quieres eliminar este canal?\nResponde con **"confirmar"** o **"cancelar"**\n*(Esta confirmación expira en 30 segundos)*`);
-      return true;
-    }
-  }
-  
-  // Create channel command - "create a channel called general"
-  if ((lowerMessage.includes("create") || lowerMessage.includes("make")) && 
-      lowerMessage.includes("channel")) {
-    const channelNameMatch = userMessage.match(/(?:channel (?:called|named) |channel ")([^"]+)"/i) || 
-                            userMessage.match(/(?:called|named) ([\w-]+)/i);
+  // 2. CREATE CHANNEL - Spanish and English, with category support
+  if (/(?:crea|create|make|add|añade|agrega).*(?:canal|channel)/i.test(lowerMessage)) {
+    // Extract channel name - very flexible patterns
+    const channelNameMatch = 
+      userMessage.match(/(?:canal|channel)\s+(?:llamado|named|called|de nombre)\s+["]?([a-zA-Z0-9-_]+)["]?/i) ||
+      userMessage.match(/(?:llamado|named|called)\s+["]?([a-zA-Z0-9-_]+)["]?/i) ||
+      userMessage.match(/(?:canal|channel)\s+["]?([a-zA-Z0-9-_]+)["]?/i);
+    
+    // Extract category ID if provided
+    const categoryMatch = userMessage.match(/(?:categoria|category|en)\s+["]?(\d{15,20})["]?/i);
     
     if (channelNameMatch && message.guild) {
       const channelName = channelNameMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
+      const categoryId = categoryMatch ? categoryMatch[1] : undefined;
+      
       try {
         const newChannel = await message.guild.channels.create({
           name: channelName,
+          parent: categoryId,
           reason: `Created by ${message.author.username} via bot command`
         });
-        await message.reply(`✅ Created channel ${newChannel}`);
+        await message.reply(`✅ Channel created: ${newChannel}`);
         return true;
       } catch (error) {
         console.error("Error creating channel:", error);
-        await message.reply(`❌ Failed to create channel. Make sure I have Manage Channels permission.`);
+        await message.reply(`❌ Failed to create channel. Check permissions and category ID.`);
         return true;
       }
     }
   }
   
-  // Create role command
-  if (lowerMessage.includes("create a role") || lowerMessage.includes("make a role")) {
-    const roleNameMatch = userMessage.match(/(?:role (?:called|named) |role ")([^"]+)"/i) || 
-                         userMessage.match(/(?:called|named) (\w+)/i);
+  // 3. DELETE CHANNEL
+  if (/(?:delete|remove|borrar|eliminar).*(?:canal|channel|this channel|este canal)/i.test(lowerMessage) &&
+      !/message/i.test(lowerMessage)) {
+    if ('delete' in message.channel) {
+      pendingConfirmations.set(message.author.id, {
+        action: 'delete_channel',
+        data: { channelId: message.channel.id },
+        expires: Date.now() + 30000
+      });
+      
+      await message.reply(`⚠️ **CONFIRMATION REQUIRED**\nAre you sure you want to delete this channel?\nRespond with **"confirmar"** or **"cancelar"**\n*(Expires in 30 seconds)*`);
+      return true;
+    }
+  }
+  
+  // 4. CREATE ROLE
+  if (/(?:crea|create|make|add).*(?:rol|role)/i.test(lowerMessage)) {
+    const roleNameMatch = 
+      userMessage.match(/(?:rol|role)\s+(?:llamado|named|called)\s+["]?([a-zA-Z0-9-_\s]+)["]?/i) ||
+      userMessage.match(/(?:llamado|named|called)\s+["]?([a-zA-Z0-9-_\s]+)["]?/i);
     
     if (roleNameMatch && message.guild) {
       const roleName = roleNameMatch[1].trim();
@@ -604,42 +614,45 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
           name: roleName,
           reason: `Created by ${message.author.username} via bot command`
         });
-        await message.reply(`✅ Created role **${roleName}**`);
+        await message.reply(`✅ Role created: **${roleName}**`);
         return true;
       } catch (error) {
         console.error("Error creating role:", error);
-        await message.reply(`❌ Failed to create role. Make sure I have Manage Roles permission.`);
+        await message.reply(`❌ Failed to create role. Check permissions.`);
         return true;
       }
     }
   }
   
-  // Delete role command
-  if (lowerMessage.includes("delete role") || lowerMessage.includes("remove role")) {
-    const roleNameMatch = userMessage.match(/(?:role (?:called|named) |role ")([^"]+)"/i) || 
-                         userMessage.match(/(?:called|named) (\w+)/i);
+  // 5. DELETE ROLE
+  if (/(?:delete|remove|borrar|eliminar).*(?:rol|role)/i.test(lowerMessage)) {
+    const roleNameMatch = 
+      userMessage.match(/(?:rol|role)\s+(?:llamado|named|called)\s+["]?([a-zA-Z0-9-_\s]+)["]?/i) ||
+      userMessage.match(/(?:llamado|named|called)\s+["]?([a-zA-Z0-9-_\s]+)["]?/i);
     
     if (roleNameMatch && message.guild) {
       const roleName = roleNameMatch[1].trim();
-      try {
-        const role = message.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-        if (role) {
+      const role = message.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+      
+      if (role) {
+        try {
           await role.delete(`Deleted by ${message.author.username} via bot command`);
-          await message.reply(`✅ Deleted role **${roleName}**`);
-        } else {
-          await message.reply(`❌ Role **${roleName}** not found.`);
+          await message.reply(`✅ Role deleted: **${roleName}**`);
+          return true;
+        } catch (error) {
+          console.error("Error deleting role:", error);
+          await message.reply(`❌ Failed to delete role.`);
+          return true;
         }
-        return true;
-      } catch (error) {
-        console.error("Error deleting role:", error);
-        await message.reply(`❌ Failed to delete role.`);
+      } else {
+        await message.reply(`❌ Role **${roleName}** not found.`);
         return true;
       }
     }
   }
   
-  // Ban user command
-  if (lowerMessage.includes("ban") && (lowerMessage.includes("<@") || lowerMessage.includes("user"))) {
+  // 6. BAN USER
+  if (/ban/i.test(lowerMessage)) {
     const mentionedUser = message.mentions.users.first();
     if (mentionedUser && message.guild) {
       try {
@@ -649,14 +662,14 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
         return true;
       } catch (error) {
         console.error("Error banning user:", error);
-        await message.reply(`❌ Failed to ban user. Make sure I have Ban Members permission.`);
+        await message.reply(`❌ Failed to ban user.`);
         return true;
       }
     }
   }
   
-  // Kick user command
-  if (lowerMessage.includes("kick") && message.mentions.users.size > 0) {
+  // 7. KICK USER
+  if (/kick/i.test(lowerMessage)) {
     const mentionedUser = message.mentions.users.first();
     if (mentionedUser && message.guild) {
       try {
@@ -666,43 +679,7 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
         return true;
       } catch (error) {
         console.error("Error kicking user:", error);
-        await message.reply(`❌ Failed to kick user. Make sure I have Kick Members permission.`);
-        return true;
-      }
-    }
-  }
-  
-  // Restrict channel to role
-  if ((lowerMessage.includes("make") || lowerMessage.includes("set")) && 
-      lowerMessage.includes("channel") && 
-      lowerMessage.includes("only") && 
-      lowerMessage.includes("role")) {
-    const roleNameMatch = userMessage.match(/role (\w+)/i);
-    if (roleNameMatch && message.guild && 'permissionOverwrites' in message.channel) {
-      const roleName = roleNameMatch[1].trim();
-      const role = message.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-      
-      if (role) {
-        try {
-          await message.channel.permissionOverwrites.set([
-            {
-              id: message.guild.id,
-              deny: [PermissionsBitField.Flags.SendMessages]
-            },
-            {
-              id: role.id,
-              allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel]
-            }
-          ]);
-          await message.reply(`✅ This channel can now only be used by members with the **${roleName}** role.`);
-          return true;
-        } catch (error) {
-          console.error("Error setting channel permissions:", error);
-          await message.reply(`❌ Failed to set channel permissions. Make sure I have Manage Channels permission.`);
-          return true;
-        }
-      } else {
-        await message.reply(`❌ Role **${roleName}** not found.`);
+        await message.reply(`❌ Failed to kick user.`);
         return true;
       }
     }
@@ -713,7 +690,7 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
 
 // Login to Discord
 export async function startBot() {
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const token = process.env.DISCORD_TOKEN;
   
   if (!token) {
     console.error("❌ DISCORD_BOT_TOKEN is not set!");
