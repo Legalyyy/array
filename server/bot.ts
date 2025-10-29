@@ -530,7 +530,9 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
   
   // 1. DELETE/CLEAR MESSAGES - Ultra flexible patterns
   if (/(?:delete|clear|remove|borrar|eliminar|purge|clean|wipe)/i.test(lowerMessage) && 
-      /(?:message|msg|chat|all|everything|todo|sent|i'?ve sent)/i.test(lowerMessage)) {
+      /(?:messages?|mensajes?|msg|chat|all|everything|todo|sent|enviado|i'?ve sent|he enviado)/i.test(lowerMessage)) {
+    
+    console.log(`   🔥 DETECTED: Clear messages command`);
     
     // Try to find a number in the message
     const numberMatch = userMessage.match(/(\d+)/);
@@ -541,17 +543,22 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
       amount = 100; // Discord API limit
     }
     
+    console.log(`   → Will delete ${amount} messages...`);
+    
     if ('bulkDelete' in message.channel) {
       try {
         const deleted = await message.channel.bulkDelete(Math.min(amount, 100), true);
         const reply = await message.channel.send(`✅ Cleared ${deleted.size} messages`);
+        console.log(`   ✅ EXECUTED: Deleted ${deleted.size} messages`);
         setTimeout(() => reply.delete().catch(() => {}), 3000);
         return true;
       } catch (error) {
-        console.error("Error deleting messages:", error);
+        console.error("   ❌ Error deleting messages:", error);
         await message.reply(`❌ Error deleting messages. Make sure I have Manage Messages permission.`);
         return true;
       }
+    } else {
+      console.log(`   ❌ Channel doesn't support bulkDelete`);
     }
   }
   
