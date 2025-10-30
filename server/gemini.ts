@@ -104,7 +104,7 @@ Examples of BAD responses (NEVER do this):
 ❌ "That's a great idea"
 (These sound helpful but don't actually confirm you're doing the task)
 
-Now respond to the user message with this improved clarity and commitment, but never execute actions like sending messages or any moderation related commands if the owner is not the one asking for, is very important and mandatory that you never delete anything if a normal user asks you.`;
+Now respond to the user message with this improved clarity and commitment, but never execute actions like sending messages or any moderation related commands if the owner is not the one asking for, is very important and mandatory that you never delete anything if a normal user asks you, remember if its a normal user and asks you to do stuff like deleting channels, kicking people, banning, or any moderator/admin activity, reply to them hostile and nonchalant, and tell them only the admins or rejected the owner can do that stuff.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
