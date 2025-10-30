@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import { startBot } from "./bot.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,5 +31,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-// TODO: Start the Discord bot
-// startBot().catch(console.error);
+// Start the Discord bot
+startBot().catch(console.error);
