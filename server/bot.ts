@@ -36,57 +36,57 @@ export const client = new Client({
 const commands = [
   new SlashCommandBuilder()
     .setName("help")
-    .setDescription("Show all available bot commands"),
+    .setDescription("all available bot commands"),
   
   new SlashCommandBuilder()
     .setName("recap")
-    .setDescription("Record your trade with P&L and notes"),
+    .setDescription("keep track of your trades"),
   
   new SlashCommandBuilder()
     .setName("myrecaps")
-    .setDescription("View your trade recaps"),
+    .setDescription("view your trade recaps"),
   
   new SlashCommandBuilder()
     .setName("recaps")
-    .setDescription("View recaps from a specific user")
+    .setDescription("view someone else's trade recaps")
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("The user whose recaps you want to view")
+        .setDescription("the user whose recaps you want to view")
         .setRequired(true)
     ),
   
   new SlashCommandBuilder()
     .setName("access")
-    .setDescription("Request access to exclusive content"),
+    .setDescription("request leaks access"),
   
   new SlashCommandBuilder()
     .setName("embed")
-    .setDescription("Send a custom embed (Admin only)")
+    .setDescription("admin")
     .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
   
   new SlashCommandBuilder()
     .setName("vc")
-    .setDescription("Create your own temporary voice channel"),
+    .setDescription("create your own vc"),
   
   new SlashCommandBuilder()
     .setName("gallery")
-    .setDescription("View all your trade screenshots"),
+    .setDescription("view all your trade screenshots"),
   
   new SlashCommandBuilder()
     .setName("bible")
-    .setDescription("Set the channel for daily bible verses (Admin only)")
+    .setDescription("admin")
     .addChannelOption(option =>
       option
         .setName("channel")
-        .setDescription("Channel to send daily bible verses")
+        .setDescription("channel to send")
         .setRequired(true)
     )
     .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
   
   new SlashCommandBuilder()
     .setName("news")
-    .setDescription("Set the channel for trading news (Admin only)")
+    .setDescription("admin")
     .addChannelOption(option =>
       option
         .setName("channel")
@@ -97,52 +97,52 @@ const commands = [
   
   new SlashCommandBuilder()
     .setName("vcsetup")
-    .setDescription("Configure voice channel system (Admin only)")
+    .setDescription("admin")
     .addChannelOption(option =>
       option
         .setName("trigger")
-        .setDescription("Voice channel that triggers temp VC creation")
+        .setDescription("admin")
         .setRequired(true)
     )
     .addChannelOption(option =>
       option
         .setName("category")
-        .setDescription("Category where temp VCs will be created")
+        .setDescription("admin")
         .setRequired(true)
     )
     .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
   
   new SlashCommandBuilder()
     .setName("setupsignup")
-    .setDescription("Create a signup embed with role assignment (Admin only)")
+    .setDescription("admin")
     .addRoleOption(option =>
       option
         .setName("role")
-        .setDescription("Role to assign when users click SIGN UP")
+        .setDescription("admin")
         .setRequired(true)
     )
     .addChannelOption(option =>
       option
         .setName("channel")
-        .setDescription("Channel where the signup embed will be posted")
+        .setDescription("admin")
         .setRequired(true)
     )
     .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
   
   new SlashCommandBuilder()
     .setName("reqrequest")
-    .setDescription("Set required role for /request command (Admin only)")
+    .setDescription("admin")
     .addRoleOption(option =>
       option
         .setName("role")
-        .setDescription("Role required to use /request command")
+        .setDescription("admin")
         .setRequired(true)
     )
     .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
   
   new SlashCommandBuilder()
     .setName("request")
-    .setDescription("Make a request to the admin team"),
+    .setDescription("request leaks access"),
 ];
 
 // Admin user IDs who can execute admin commands via chat
@@ -157,7 +157,7 @@ client.once(Events.ClientReady, async (c) => {
     activities: [{
       name: "escape",
       type: 1, // Streaming
-      url: "https://twitch.tv/trading"
+      url: "https://twitch.tv/o"
     }],
     status: "online"
   });
@@ -246,7 +246,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
   } catch (error) {
     console.error("❌ Error processing message:", error);
     try {
-      await message.reply("Tuve un problema procesando eso. ¿Puedes intentar de nuevo?");
+      await message.reply("can u retry? i had an error");
     } catch (replyError) {
       console.error("❌ Failed to send error reply:", replyError);
     }
@@ -327,31 +327,19 @@ async function handleSlashCommand(interaction: ChatInputCommandInteraction) {
 async function handleHelpCommand(interaction: ChatInputCommandInteraction) {
   const embed = new EmbedBuilder()
     .setColor(0x2B5BBA)
-    .setTitle("🤖 Bot Commands")
-    .setDescription("Here's everything I can do:")
+    .setTitle("commands")
+    .setDescription("slash commands on array")
     .addFields(
-      { name: "**📊 Trading Commands**", value: "\u200b" },
-      { name: "/recap", value: "Record a trade with P&L and notes (attach image)" },
-      { name: "/myrecaps", value: "View all your trade recaps" },
-      { name: "/gallery", value: "View all your trade screenshots with pagination" },
-      { name: "/recaps @user", value: "View another user's trade recaps" },
-      { name: "\u200b", value: "\u200b" },
-      { name: "**🎯 User Commands**", value: "\u200b" },
-      { name: "/vc", value: "Create your own temporary voice channel" },
-      { name: "/access", value: "Request access to exclusive content" },
-      { name: "/request", value: "Submit a request to the admin team" },
-      { name: "\u200b", value: "\u200b" },
-      { name: "**⚙️ Admin Commands**", value: "\u200b" },
-      { name: "/setupsignup", value: "Create a signup embed with role assignment (Admin)" },
-      { name: "/reqrequest", value: "Set required role for /request command (Admin)" },
-      { name: "/embed", value: "Send a custom embed (Admin)" },
-      { name: "/bible #channel", value: "Set daily bible verse channel (Admin)" },
-      { name: "/news #channel", value: "Set trading news channel (Admin)" },
-      { name: "/vcsetup", value: "Configure temp voice channel system (Admin)" },
-      { name: "\u200b", value: "\u200b" },
-      { name: "**💬 Chat**", value: "Mention me or reply to my messages to chat!" }
+      { name: "**General**", value: "\u200b" },
+      { name: "/recap", value: "keep track of your trades" },
+      { name: "/myrecaps", value: "view all your trade recaps" },
+      { name: "/gallery", value: "view all your trade screenshots" },
+      { name: "/recaps @user", value: "view someone else's trade recaps"},
+      { name: "/vc", value: "create your own vc" },
+      { name: "/request", value: "request leaks access" },
+      { name: "**chat**", value: "just mention or reply to me" }
     )
-    .setFooter({ text: "Trading community bot powered by AI" })
+    .setFooter({ text: "escape - array" })
     .setTimestamp();
   
   await interaction.reply({ embeds: [embed] });
@@ -360,26 +348,26 @@ async function handleHelpCommand(interaction: ChatInputCommandInteraction) {
 async function handleRecapCommand(interaction: ChatInputCommandInteraction) {
   const modal = new ModalBuilder()
     .setCustomId("recap_modal")
-    .setTitle("Record Your Trade");
+    .setTitle("Track the trade");
   
   const notesInput = new TextInputBuilder()
     .setCustomId("notes")
-    .setLabel("Trade Notes")
-    .setPlaceholder("Describe your trade setup, strategy, lessons learned...")
+    .setLabel("Notes")
+    .setPlaceholder("Describe your setup and/or lessons learned...")
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
   
   const pnlInput = new TextInputBuilder()
     .setCustomId("pnl")
     .setLabel("P&L")
-    .setPlaceholder("e.g., +$500 or -$200")
+    .setPlaceholder("-500, 500, breakeven...")
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
   
   const imageUrlInput = new TextInputBuilder()
     .setCustomId("imageUrl")
     .setLabel("Screenshot URL (optional)")
-    .setPlaceholder("Paste image URL from Discord or upload...")
+    .setPlaceholder("image url of your trade")
     .setStyle(TextInputStyle.Short)
     .setRequired(false);
   
@@ -397,7 +385,7 @@ async function handleMyRecapsCommand(interaction: ChatInputCommandInteraction) {
   
   if (recaps.length === 0) {
     await interaction.reply({ 
-      content: "You haven't recorded any trades yet. Use `/recap` to add one!",
+      content: "you haven't recorded any trades yet. Use `/recap` to add one",
       ephemeral: true
     });
     return;
@@ -405,7 +393,7 @@ async function handleMyRecapsCommand(interaction: ChatInputCommandInteraction) {
   
   const embed = new EmbedBuilder()
     .setColor(0x2B5BBA)
-    .setTitle(`📊 ${interaction.user.username}'s Trade Recaps`)
+    .setTitle(` ${interaction.user.username}'s Trade Recaps`)
     .setDescription(`Total trades: ${recaps.length}`)
     .setTimestamp();
   
@@ -438,7 +426,7 @@ async function handleUserRecapsCommand(interaction: ChatInputCommandInteraction)
   
   const embed = new EmbedBuilder()
     .setColor(0x2B5BBA)
-    .setTitle(`📊 ${targetUser.username}'s Trade Recaps`)
+    .setTitle(` ${targetUser.username}'s Trade Recaps`)
     .setDescription(`Total trades: ${recaps.length}`)
     .setTimestamp();
   
@@ -557,18 +545,18 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       
       const embed = new EmbedBuilder()
         .setColor(pnl.startsWith("+") || pnl.startsWith("$") && !pnl.includes("-") ? 0x10B981 : 0xEF4444)
-        .setTitle("📊 Trade Recap Saved")
+        .setTitle("Trade Recap Saved")
         .addFields(
-          { name: "Trade ID", value: `#${recap.id}` },
+          { name: "ID", value: `#${recap.id}` },
           { name: "P&L", value: pnl },
           { name: "Notes", value: notes }
         )
-        .setFooter({ text: `Trader: ${interaction.user.username}` })
+        .setFooter({ text: `user: ${interaction.user.username}` })
         .setTimestamp();
       
       if (imageUrl) {
         embed.setImage(imageUrl);
-        embed.addFields({ name: "Screenshot", value: "✅ Attached" });
+        embed.addFields({ name: "screenshot", value: "✅ attached" });
       }
       
       await interaction.reply({ embeds: [embed] });
@@ -587,20 +575,15 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       });
       
       await interaction.reply({ 
-        content: "✅ Access request submitted! The admin team will review it soon.",
+        content: "✅ use /request",
         ephemeral: true
       });
       
       // Notify in the channel (non-ephemeral) 
       const embed = new EmbedBuilder()
         .setColor(0x2B5BBA)
-        .setTitle("🔑 New Access Request")
-        .setDescription(`${interaction.user.username} has requested access to exclusive content.`)
-        .addFields(
-          { name: "Trading Experience", value: experience },
-          { name: "Profitable?", value: profitable },
-          { name: "Reason", value: reason }
-        )
+        .setTitle("🔑 to gain access use:")
+        .setDescription(`/request ${interaction.user.username}`)
         .setTimestamp();
       
       await interaction.followUp({ embeds: [embed] });
@@ -621,7 +604,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       if (footer) embed.setFooter({ text: footer });
       if (imageUrl) embed.setImage(imageUrl);
       
-      await interaction.reply({ content: "✅ Embed created successfully!" , ephemeral: true });
+      await interaction.reply({ content: "✅ embed created" , ephemeral: true });
       if (interaction.channel && 'send' in interaction.channel) {
         await interaction.channel.send({ embeds: [embed] });
       }
@@ -668,7 +651,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       
       const embed = new EmbedBuilder()
         .setColor(0x2B5BBA)
-        .setTitle(`📝 New Request: ${title}`)
+        .setTitle(`New Request: ${title}`)
         .setDescription(details)
         .addFields(
           { name: "Requested by", value: `${interaction.user.username} (${interaction.user.id})`, inline: true },
@@ -676,7 +659,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
         )
         .setTimestamp();
       
-      await interaction.reply({ content: "✅ Request submitted successfully!", ephemeral: true });
+      await interaction.reply({ content: "✅ request submitted", ephemeral: true });
       if (interaction.channel && 'send' in interaction.channel) {
         await interaction.channel.send({ embeds: [embed] });
       }
@@ -688,7 +671,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       const pageNumber = parseInt(interaction.fields.getTextInputValue("trade_number"));
       
       if (userId !== interaction.user.id) {
-        await interaction.reply({ content: "❌ This is not your gallery.", ephemeral: true });
+        await interaction.reply({ content: "❌ this is not your gallery.", ephemeral: true });
         return;
       }
       
@@ -697,7 +680,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       
       if (isNaN(pageNumber) || pageNumber < 1 || pageNumber > recapsWithImages.length) {
         await interaction.reply({ 
-          content: `❌ Invalid page number. Please enter a number between 1 and ${recapsWithImages.length}.`, 
+          content: `❌ invalid page number. Please enter a number between 1 and ${recapsWithImages.length}.`, 
           ephemeral: true 
         });
         return;
@@ -708,7 +691,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction) {
       
       const embed = new EmbedBuilder()
         .setColor(recap.pnl.startsWith("+") || recap.pnl.startsWith("$") && !recap.pnl.includes("-") ? 0x10B981 : 0xEF4444)
-        .setTitle(`📊 Trade #${recap.id}`)
+        .setTitle(`Trade #${recap.id}`)
         .addFields(
           { name: "P&L", value: recap.pnl, inline: true },
           { name: "Date", value: new Date(recap.createdAt).toLocaleDateString(), inline: true }
@@ -1852,7 +1835,7 @@ async function handleVCCommand(interaction: ChatInputCommandInteraction) {
     const settings = await storage.getServerSettings(interaction.guild.id);
     if (!settings || !settings.vcTriggerChannelId || !settings.vcCategoryId) {
       await interaction.reply({ 
-        content: "❌ Voice channel system not configured. Ask an admin to run `/vcsetup` first.",
+        content: "voice channel system not configured. ask rejected to run `/vcsetup` first.",
         ephemeral: true 
       });
       return;
@@ -1861,13 +1844,13 @@ async function handleVCCommand(interaction: ChatInputCommandInteraction) {
     // Check if user is in the trigger voice channel
     const voiceState = interaction.guild.members.cache.get(interaction.user.id)?.voice;
     if (!voiceState || !voiceState.channelId) {
-      await interaction.reply({ content: "❌ You must be in a voice channel to use this command.", ephemeral: true });
+      await interaction.reply({ content: "❌ you must be in sessions voice chat to create a room.", ephemeral: true });
       return;
     }
 
     if (voiceState.channelId !== settings.vcTriggerChannelId) {
       await interaction.reply({ 
-        content: `❌ You must be in the designated voice channel (<#${settings.vcTriggerChannelId}>) to create a temporary VC.`,
+        content: `you must be in (<#${settings.vcTriggerChannelId}>) to create a temporary vc.`,
         ephemeral: true 
       });
       return;
@@ -1879,7 +1862,7 @@ async function handleVCCommand(interaction: ChatInputCommandInteraction) {
       name: channelName,
       type: ChannelType.GuildVoice,
       parent: settings.vcCategoryId,
-      reason: `Temporary VC created by ${interaction.user.username}`,
+      reason: `temporary vc created by ${interaction.user.username}`,
     });
 
     // Save to database
@@ -1900,7 +1883,7 @@ async function handleVCCommand(interaction: ChatInputCommandInteraction) {
     const settingsEmbed = new EmbedBuilder()
       .setColor(0x2B5BBA)
       .setTitle("🎙️ Voice Channel Created")
-      .setDescription(`Your channel <#${newChannel.id}> has been created!\n\nUse the menu below to configure it:`)
+      .setDescription(`Your channel <#${newChannel.id}> has been created\n\nUse the menu below to configure it:`)
       .setTimestamp();
 
     const privacyMenu = new StringSelectMenuBuilder()
@@ -1913,7 +1896,7 @@ async function handleVCCommand(interaction: ChatInputCommandInteraction) {
           .setEmoji("🌐")
           .setDefault(true),
         new StringSelectMenuOptionBuilder()
-          .setLabel("Private - Only invited users")
+          .setLabel("Private - Only invited ppl")
           .setValue("private")
           .setEmoji("🔒"),
       ]);
@@ -1962,7 +1945,7 @@ async function handleGalleryCommand(interaction: ChatInputCommandInteraction) {
 
     if (recapsWithImages.length === 0) {
       await interaction.reply({
-        content: "📸 You haven't uploaded any trade screenshots yet.\n\nUse `/recap` and add an image URL to start building your gallery!",
+        content: "📸 you haven't uploaded any trade screenshots yet.\n\nuse `/recap` and add an image URL to start building your gallery",
         ephemeral: true,
       });
       return;
@@ -1973,7 +1956,7 @@ async function handleGalleryCommand(interaction: ChatInputCommandInteraction) {
       const embeds = recapsWithImages.map(recap => {
         const embed = new EmbedBuilder()
           .setColor(recap.pnl.startsWith("+") || recap.pnl.startsWith("$") && !recap.pnl.includes("-") ? 0x10B981 : 0xEF4444)
-          .setTitle(`📊 Trade #${recap.id}`)
+          .setTitle(`Trade #${recap.id}`)
           .addFields(
             { name: "P&L", value: recap.pnl, inline: true },
             { name: "Date", value: new Date(recap.createdAt).toLocaleDateString(), inline: true }
@@ -1997,7 +1980,7 @@ async function handleGalleryCommand(interaction: ChatInputCommandInteraction) {
     
     const embed = new EmbedBuilder()
       .setColor(recap.pnl.startsWith("+") || recap.pnl.startsWith("$") && !recap.pnl.includes("-") ? 0x10B981 : 0xEF4444)
-      .setTitle(`📊 Trade #${recap.id}`)
+      .setTitle(`Trade #${recap.id}`)
       .addFields(
         { name: "P&L", value: recap.pnl, inline: true },
         { name: "Date", value: new Date(recap.createdAt).toLocaleDateString(), inline: true }
