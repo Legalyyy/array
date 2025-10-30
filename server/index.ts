@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app: Express = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 5000;
 
 app.use(express.json());
 
