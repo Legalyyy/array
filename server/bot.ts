@@ -2519,15 +2519,15 @@ async function handleButton(interaction: any) {
 
         // Send DM
         try {
-          await interaction.user.send("you wont regret forming part of the escape.");
+          await interaction.user.send("time to escape right?");
         } catch (dmError) {
           console.error("Failed to send DM:", dmError);
         }
 
-        await interaction.reply({ content: "✅ Welcome! You've been assigned the role.", ephemeral: true });
+        await interaction.reply({ content: "✅ welcome.", ephemeral: true });
       } catch (error) {
         console.error("Error assigning role:", error);
-        await interaction.reply({ content: "❌ Failed to assign role. Please contact an admin.", ephemeral: true });
+        await interaction.reply({ content: "❌ failed, dm rejected.", ephemeral: true });
       }
     }
   } catch (error) {
