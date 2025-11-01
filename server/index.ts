@@ -17,8 +17,14 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Bot is alive" });
 });
 
-// Serve static files from client folder
-const clientPath = path.resolve(__dirname, "../client");
+// Determine client path based on environment
+// In development: ../client from server/index.ts
+// In production: ./client from dist/index.js (after build)
+const isDev = process.env.NODE_ENV === 'development';
+const clientPath = isDev 
+  ? path.resolve(__dirname, "../client")
+  : path.resolve(__dirname, "client");
+
 app.use(express.static(clientPath));
 
 // Serve index.html for all other routes
@@ -30,6 +36,7 @@ app.get("*", (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Web interface available to keep bot alive`);
+  console.log(`📁 Serving client from: ${clientPath}`);
 });
 
 // Start the Discord bot
