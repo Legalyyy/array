@@ -11,7 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@google/genai": "^1.27.0",
+    "@google/genai": "^1.28.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -48,9 +48,9 @@
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
-    "discord.js": "^14.24.1",
-    "drizzle-orm": "^0.39.1",
-    "drizzle-zod": "^0.7.0",
+    "discord.js": "^14.24.2",
+    "drizzle-orm": "^0.39.3",
+    "drizzle-zod": "^0.7.1",
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
