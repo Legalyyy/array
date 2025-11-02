@@ -3,7 +3,6 @@ import session from "express-session";
 import path from "path";
 import { fileURLToPath } from "url";
 import { storage } from "./storage";
-import { startBot } from "./bot.js";
 
 // Extend session data type
 declare module "express-session" {
@@ -168,11 +167,29 @@ app.get("/api/profile/:username", async (req, res) => {
   try {
     const { username } = req.params;
     
-    // Get user's trade recaps to extract user info
+    // Get user's trade recaps
     const trades = await storage.getTradeRecapsByUsername(username);
     
-    if (trades.length === 0) {
-      // User not found or has no trades
+    // Try to find user by access code (works even without trades)
+    let userId: string | null = null;
+    let avatarUrl: string | null = null;
+    let isPremium = false;
+    
+    // First, try to get user info from access codes
+    const accessCodes = await storage.getAllAccessCodes();
+    const userAccessCode = accessCodes.find(ac => ac.username.toLowerCase() === username.toLowerCase());
+    
+    if (userAccessCode) {
+      userId = userAccessCode.userId;
+      avatarUrl = userAccessCode.avatarUrl || null;
+      isPremium = userAccessCode.hasRequiredRole || false;
+      console.log(`Profile request for ${username}: Found access code with hasRequiredRole:`, isPremium);
+    } else if (trades.length > 0) {
+      // Fallback to trades if no access code found
+      userId = trades[0].userId;
+      console.log(`Profile request for ${username}: Using userId from trades`);
+    } else {
+      // User not found in trades or access codes
       return res.status(404).json({ 
         success: false, 
         error: "User not found" 
@@ -180,34 +197,17 @@ app.get("/api/profile/:username", async (req, res) => {
     }
     
     // Check if logged in user is viewing their own profile
-    // Compare session username with requested username (case-insensitive)
-    const isOwnProfile = req.session.username?.toLowerCase() === username.toLowerCase();
-    
-    // Get avatar URL and hasRequiredRole from access codes
-    let avatarUrl: string | null = null;
-    let isPremium = false;
-    try {
-      const userAccessCode = await storage.getAccessCodeByUserId(trades[0].userId);
-      if (userAccessCode) {
-        avatarUrl = userAccessCode.avatarUrl || null;
-        isPremium = userAccessCode.hasRequiredRole || false;
-        console.log(`Profile request for ${username}: Found access code with hasRequiredRole:`, isPremium);
-      } else {
-        console.log(`Profile request for ${username}: No access code found`);
-      }
-    } catch (error) {
-      console.error("Error fetching avatar:", error);
-    }
+    const isOwnProfile = req.session.userId === userId;
 
     console.log(`Premium status for ${username}:`, {
-      userId: trades[0].userId,
+      userId,
       isPremium
     });
 
     // Get profile customization if exists
     let customization = {};
     try {
-      const profileCustomization = await storage.getProfileCustomization(trades[0].userId);
+      const profileCustomization = await storage.getProfileCustomization(userId);
       if (profileCustomization) {
         customization = {
           backgroundImage: profileCustomization.backgroundImage,
@@ -221,6 +221,7 @@ app.get("/api/profile/:username", async (req, res) => {
           nameGradient: profileCustomization.nameGradient,
           nameGlowColor: profileCustomization.nameGlowColor,
           nameAnimation: profileCustomization.nameAnimation,
+          nameFontSize: profileCustomization.nameFontSize,
           galleryDisplay: profileCustomization.galleryDisplay,
           avatarGlowColor: profileCustomization.avatarGlowColor,
           avatarGlowEnabled: profileCustomization.avatarGlowEnabled,
@@ -247,6 +248,7 @@ app.get("/api/profile/:username", async (req, res) => {
     // Return user info
     const userInfo = {
       username: username,  // Use the requested username (already public)
+      userId: userId,
       totalTrades: trades.length,
       avatarUrl: avatarUrl,
       trades: sanitizedTrades,
@@ -419,10 +421,14 @@ app.listen(PORT, "0.0.0.0", () => {
 // Start Discord bot if token is available
 if (process.env.DISCORD_TOKEN) {
   console.log(`🤖 Starting Discord bot...`);
-  startBot().catch((error) => {
-    console.error("❌ Failed to start Discord bot:", error);
+  import("./bot.js").then(({ startBot }) => {
+    startBot().catch((error) => {
+      console.error("❌ Failed to start Discord bot:", error);
+    });
+  }).catch((error) => {
+    console.error("❌ Failed to load Discord bot module:", error);
   });
 } else {
   console.log("⚠️  DISCORD_TOKEN not found - bot will not start");
-  console.log("⚠️  Web login will not work without the bot running");
+  console.log("⚠️  Web interface will work, but Discord features are disabled");
 }
