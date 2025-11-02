@@ -1044,18 +1044,18 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
   
   // 9. TIMEOUT USER
   if (/(?:timeout|mute|silenciar|mutear)/i.test(lowerMessage) && !/ canal| channel| voice| voz/i.test(lowerMessage)) {
-    const mentionedUser = message.mentions.users.array()[1];
+    const mentionedUser = Array.from(message.mentions.users.values())[1]; // Aquí obtenemos el segundo usuario mencionado
     if (mentionedUser && message.guild) {
       const timeMatch = userMessage.match(/(\d+)\s*(?:min|minute|minuto|hour|hora|day|dia|d|h|m)/i);
       let duration = 10 * 60 * 1000; // Default 10 minutes
-      
+
       if (timeMatch) {
         const num = parseInt(timeMatch[1]);
         if (/h|hour|hora/i.test(timeMatch[0])) duration = num * 60 * 60 * 1000;
         else if (/d|day|dia/i.test(timeMatch[0])) duration = num * 24 * 60 * 60 * 1000;
         else duration = num * 60 * 1000;
       }
-      
+
       try {
         const member = await message.guild.members.fetch(mentionedUser.id);
         await member.timeout(duration, `Timed out by ${message.author.username}`);
@@ -1068,6 +1068,7 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
       }
     }
   }
+
   
   // 10. UNTIMEOUT USER
   if (/(?:untimeout|unmute|quitar (?:mute|timeout|silencio)|desmutear)/i.test(lowerMessage) && !/ canal| channel| voice| voz/i.test(lowerMessage)) {
