@@ -136,18 +136,18 @@ function setupLoginAnimation() {
             }, 2000);
           }, 400);
         } else {
-          alert(data.error || "Código inválido. Por favor verifica e intenta de nuevo.");
+          alert(data.error || "Invalid code. Please verify and try again.");
           submitBtn.disabled = false;
           submitBtn.style.opacity = "1";
         }
       } catch (error) {
-        console.error("Error al verificar código:", error);
-        alert("Error al verificar el código. Por favor intenta de nuevo.");
+        console.error("Error verifying code:", error);
+        alert("Error verifying code. Please try again.");
         submitBtn.disabled = false;
         submitBtn.style.opacity = "1";
       }
     } else {
-      alert("Por favor ingresa un código válido (formato: XXX-XXX)");
+      alert("Please enter a valid code (format: XXX-XXX)");
     }
   });
 
