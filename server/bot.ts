@@ -2524,7 +2524,7 @@ async function handleCodeCommand(interaction: ChatInputCommandInteraction) {
         : process.env.REPLIT_DEV_DOMAIN
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : 'http://localhost:5000';
-      const profileUrl = `${baseUrl}/p/${interaction.user.username.toLowerCase()}`;
+      const profileUrl = `https://array-mnn9.onrender.com/p/${interaction.user.username.toLowerCase()}`;
       
       const dmEmbed = new EmbedBuilder()
         .setColor(0x2B5BBA)
