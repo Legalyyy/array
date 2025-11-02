@@ -84,9 +84,11 @@ npm run dev
 2. Haz click en "New +" → "Web Service"
 3. Conecta tu repositorio de GitHub
 4. Configura:
-   - **Build Command**: `./build.sh`
-   - **Start Command**: `npm start`
+   - **Name**: mindlinkquest (o el nombre que prefieras)
    - **Environment**: Node
+   - **Build Command**: `chmod +x build.sh && ./build.sh`
+   - **Start Command**: `npm start`
+   - **Node Version**: 20 o superior (en Environment Variables)
 
 ### Paso 3: Crear PostgreSQL Database
 1. En Render, ve a "New +" → "PostgreSQL"

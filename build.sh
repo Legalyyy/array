@@ -108,7 +108,19 @@ fi
 
 echo ""
 
-# Step 6: Database setup
+# Step 6: Build application FIRST (before database)
+print_step "Compilando aplicación..."
+if npm run build; then
+    print_success "Aplicación compilada exitosamente"
+    echo "  - Frontend compilado a: dist/public"
+    echo "  - Backend compilado a: dist/index.js"
+else
+    print_error "Error al compilar la aplicación"
+    exit 1
+fi
+echo ""
+
+# Step 7: Database setup (after build)
 if [ -n "$DATABASE_URL" ]; then
     print_step "Configurando base de datos..."
     
@@ -122,18 +134,6 @@ if [ -n "$DATABASE_URL" ]; then
     echo ""
 else
     print_warning "Saltando configuración de base de datos (DATABASE_URL no configurada)"
-    echo ""
-fi
-
-# Step 7: Build application (if not in development)
-if [ "$NODE_ENV" == "production" ]; then
-    print_step "Compilando aplicación para producción..."
-    if npm run build; then
-        print_success "Aplicación compilada exitosamente"
-    else
-        print_error "Error al compilar la aplicación"
-        exit 1
-    fi
     echo ""
 fi
 

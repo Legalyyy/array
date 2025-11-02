@@ -402,7 +402,7 @@ app.delete("/api/trades/:id", async (req, res) => {
 const isDev = process.env.NODE_ENV === 'development';
 const clientPath = isDev 
   ? path.resolve(__dirname, "../client")
-  : path.resolve(__dirname, "client");
+  : path.resolve(__dirname, "public");
 
 app.use(express.static(clientPath));
 
