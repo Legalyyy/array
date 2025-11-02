@@ -178,23 +178,9 @@ client.once(Events.ClientReady, async (c) => {
   // Register slash commands globally
   try {
     await c.application?.commands.set(commands);
-    console.log("✅ Slash commands registered globally");
+    console.log("✅ Slash commands registered");
   } catch (error) {
-    console.error("Error registering global commands:", error);
-  }
-
-  // ALSO register commands in the specific guild for immediate update
-  // This forces Discord to update the cache immediately for your server
-  if (process.env.DISCORD_GUILD_ID) {
-    try {
-      const guild = await c.guilds.fetch(process.env.DISCORD_GUILD_ID);
-      await guild.commands.set(commands);
-      console.log(`✅ Slash commands registered in guild: ${guild.name}`);
-      console.log(`   This ensures /code and other commands appear immediately for all users`);
-    } catch (error) {
-      console.error("Error registering guild-specific commands:", error);
-      console.log("   Commands will still work via global registration");
-    }
+    console.error("Error registering commands:", error);
   }
 });
 
@@ -1058,7 +1044,7 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
   
   // 9. TIMEOUT USER
   if (/(?:timeout|mute|silenciar|mutear)/i.test(lowerMessage) && !/ canal| channel| voice| voz/i.test(lowerMessage)) {
-    const mentionedUser = message.mentions.users.first();
+    const mentionedUser = message.mentions.users.array()[1];
     if (mentionedUser && message.guild) {
       const timeMatch = userMessage.match(/(\d+)\s*(?:min|minute|minuto|hour|hora|day|dia|d|h|m)/i);
       let duration = 10 * 60 * 1000; // Default 10 minutes
