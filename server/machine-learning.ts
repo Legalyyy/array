@@ -262,7 +262,7 @@ export class MachineLearning {
       "casual",
       "supportive",
       "analytical",
-      "concise"
+      "nonchalant"
     ];
   }
 }
