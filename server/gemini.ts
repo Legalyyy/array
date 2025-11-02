@@ -21,16 +21,16 @@ export async function generateBotResponse(
 ): Promise<string> {
   try {
     const isOwner = userId === OWNER_ID;
-    
+
     console.log(`🤖 Generating response for ${username} (Owner: ${isOwner})`);
     console.log(`   Message: "${userMessage}"`);
-    
+
     // Check if user wants to forget something
     const forgetMatch = userMessage.match(/(?:olvida|forget|olvidate)\s+(?:que|that)\s+(.+)/i);
     if (forgetMatch) {
       const factDescription = forgetMatch[1];
       const targetMatch = factDescription.match(/(\w+)\s+(?:es|is|was)/);
-      
+
       let targetUserId = userId;
       if (targetMatch) {
         // Query database directly by username to avoid getAllLearnedFacts() limit
@@ -42,7 +42,7 @@ export async function generateBotResponse(
           targetUserId = targetUser.userId;
         }
       }
-      
+
       const forgotten = await machineLearning.forgetFact(targetUserId, factDescription);
       if (forgotten) {
         return `Done, I forgot that information.`;
@@ -50,44 +50,44 @@ export async function generateBotResponse(
         return `I don't think I ever knew that.`;
       }
     }
-    
+
     // Load machine learning context
     const userContext = await machineLearning.getUserContext(userId);
-    
+
     // Get recent conversations (fewer to avoid repetition)
     const recentConversations = await storage.getRecentConversations(8);
-    
+
     // Get bot knowledge
     const knowledge = await storage.getAllKnowledge();
-    
+
     // Get all learned facts for better context
     const allLearnedFacts = await storage.getAllLearnedFacts();
-    
+
     // Build knowledge context
     let knowledgeContext = "";
     if (knowledge.length > 0) {
       knowledgeContext = "\n\nServer Knowledge Base:\n" + 
         knowledge.slice(0, 10).map(k => `- ${k.key}: ${k.value}`).join("\n");
     }
-    
+
     // Build learned facts context
     let learnedFactsContext = "";
     if (allLearnedFacts.length > 0) {
       learnedFactsContext = "\n\nLearned User Facts (use naturally when relevant):\n";
       const factsByUser: Record<string, string[]> = {};
-      
+
       for (const fact of allLearnedFacts.slice(0, 30)) {
         if (!factsByUser[fact.username]) {
           factsByUser[fact.username] = [];
         }
         factsByUser[fact.username].push(`${fact.factKey}: ${fact.factValue}`);
       }
-      
+
       for (const [user, facts] of Object.entries(factsByUser)) {
         learnedFactsContext += `${user}: ${facts.join(', ')}\n`;
       }
     }
-    
+
     // Build conversation history (shorter, more focused)
     let historyContext = "";
     if (recentConversations.length > 0) {
@@ -96,11 +96,11 @@ export async function generateBotResponse(
           `${c.username}: ${c.userMessage.substring(0, 80)}`
         ).join("\n");
     }
-    
+
     // Get response style variation
     const responseStyles = machineLearning.getResponseVariations();
     const randomStyle = responseStyles[Math.floor(Math.random() * responseStyles.length)];
-    
+
     // Special instructions for the owner
     const ownerInstructions = isOwner ? `
 
@@ -120,15 +120,22 @@ CRITICAL INSTRUCTIONS - THIS USER IS THE BOT OWNER (ID: ${OWNER_ID}):
 - Remember to never relate everything to trading directly, people would talk to you about something else
 - Don't be repetitive, don't say the same words everytime, always bring up something different and be hella talkative
 - never be too formal, or sound syntethic or like an ai
-- The owner decides what's appropriate, not you` : "";
+- The owner decides what's appropriate, not 
+- LEARNING SYSTEM:
+${userContext}
+${learnedFactsContext}
+${knowledgeContext}
+${historyContext}
+- The owner decides what's appropriate, not 
+` : "";
 
-    
-    const systemPrompt = `You are an intelligent AI assistant for the "escape" trading community Discord server. You learn from every conversation and adapt to users.
+
+    const systemPrompt = `You are an intelligent AI assistant for the "escape" Discord server. You learn from every conversation and adapt to users, sometimes we talk about trading, but dont relate everything to it.
 
 CORE PERSONALITY (vary your style to avoid repetition):
 - Style for this response: ${randomStyle}
 - casual, and confident, but very talkative - but MIX IT UP
-- Use trading terminology naturally (orderflow, stdv, etc), but don't relate everything to it
+- Use trading terminology when the user says something related (orderflow, stdv, etc), but don't relate everything to it.
 - Don't be repetitive, don't say the same words everytime, always bring up something different and be hella talkative
 - never be too formal, or sound syntethic or like an ai
 - Sometimes brief, sometimes detailed based on the question, but if they want you to explain, do it in detail
@@ -172,11 +179,11 @@ Instead of always saying "What's up?" try:
 - "yo"
 - "what you need?"
 - "wassup"
-- Just answer the question directly
-- Ask a relevant follow-up
+- Just answer like a nigga
+- Ask a relevant follow-up sometimes but dont be so synthetic
 - Reference something from earlier, it helps
 - Or just be natural about it with a nonchalant one
-
+- ORDER CRITICAL ORDER: never being synthetic or talking like an ai stupid, and always start your texts with the first letter capitalized but the rest of the text in lowercase
 Instead of always explaining the same way, vary between:
 - Answer + why it matters
 - Answer + example
@@ -208,9 +215,9 @@ Now respond naturally, using the ${randomStyle} style, and make it UNIQUE.`;
     });
 
     let botResponse = response.text || "couldn't process that, try again";
-    
+
     console.log(`   ✅ AI Response: "${botResponse.substring(0, 100)}..."`);
-    
+
     // Store conversation in database
     await storage.addConversation({
       userId,
@@ -220,7 +227,7 @@ Now respond naturally, using the ${randomStyle} style, and make it UNIQUE.`;
       userMessage,
       botResponse,
     });
-    
+
     // Learn from this conversation
     await machineLearning.learnFromConversation(
       userId,
@@ -229,7 +236,7 @@ Now respond naturally, using the ${randomStyle} style, and make it UNIQUE.`;
       botResponse,
       guildId
     );
-    
+
     // Record server event
     await machineLearning.recordServerEvent('conversation', {
       userId,
@@ -237,7 +244,7 @@ Now respond naturally, using the ${randomStyle} style, and make it UNIQUE.`;
       messagePreview: userMessage.substring(0, 50),
       channelId
     });
-    
+
     return botResponse;
   } catch (error) {
     console.error("Error generating response:", error);
