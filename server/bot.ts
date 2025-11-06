@@ -2187,7 +2187,7 @@ async function handleBibleCommand(interaction: ChatInputCommandInteraction) {
     });
 
     await interaction.reply({
-      content: `✅ Daily bible verses will be sent to <#${channel.id}> at midnight (00:00 UTC).`,
+      content: `✅ Daily bible verses will be sent to <#${channel.id}> at midnight (00:00 New York time / ET).`,
       ephemeral: false,
     });
 
@@ -2387,20 +2387,96 @@ client.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
-// Daily bible verse sender (runs at midnight UTC)
+// Fetch random verse from api.bible (RSV version)
+async function getRandomBibleVerse() {
+  const BIBLE_API_KEY = process.env.BIBLE_API_KEY;
+  if (!BIBLE_API_KEY) {
+    throw new Error("BIBLE_API_KEY not configured");
+  }
+
+  // RSV Bible ID on api.bible
+  const RSV_BIBLE_ID = "de4e12af7f28f599-02";
+  
+  // Get all books first
+  const booksResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/books`, {
+    headers: {
+      "api-key": BIBLE_API_KEY,
+    },
+  });
+  const booksData = await booksResponse.json();
+  
+  // Select a random book
+  const books = booksData.data.filter((book: any) => book.id !== "INT"); // Exclude introduction
+  const randomBook = books[Math.floor(Math.random() * books.length)];
+  
+  // Get chapters for this book
+  const chaptersResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/books/${randomBook.id}/chapters`, {
+    headers: {
+      "api-key": BIBLE_API_KEY,
+    },
+  });
+  const chaptersData = await chaptersResponse.json();
+  const chapters = chaptersData.data.filter((ch: any) => ch.number !== "intro");
+  const randomChapter = chapters[Math.floor(Math.random() * chapters.length)];
+  
+  // Get verses for this chapter
+  const versesResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}/verses`, {
+    headers: {
+      "api-key": BIBLE_API_KEY,
+    },
+  });
+  const versesData = await versesResponse.json();
+  const verses = versesData.data;
+  
+  if (verses.length === 0) {
+    // Fallback to chapter if no verses
+    const chapterResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}?content-type=text`, {
+      headers: {
+        "api-key": BIBLE_API_KEY,
+      },
+    });
+    const chapterData = await chapterResponse.json();
+    return {
+      reference: randomChapter.reference,
+      text: chapterData.data.content.substring(0, 500) + "...",
+      verseNumber: "1",
+    };
+  }
+  
+  const randomVerse = verses[Math.floor(Math.random() * verses.length)];
+  
+  // Get the full verse text
+  const verseResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/verses/${randomVerse.id}?content-type=text&include-verse-numbers=false`, {
+    headers: {
+      "api-key": BIBLE_API_KEY,
+    },
+  });
+  const verseData = await verseResponse.json();
+  
+  return {
+    reference: randomVerse.reference,
+    text: verseData.data.content.trim(),
+    verseNumber: randomVerse.id.split('.').pop() || "",
+  };
+}
+
+// Daily bible verse sender (runs at midnight New York time)
 async function sendDailyBibleVerse() {
   try {
     const now = new Date();
-    const today = now.toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    // Convert to New York timezone
+    const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const today = nyTime.toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
     
     // Get all guilds and check their bible channel settings
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.bibleChannelId) continue;
 
-      // Check if verse was already sent today
+      // Check if verse was already sent today (NY time)
       if (settings.lastBibleSent) {
-        const lastSentDate = new Date(settings.lastBibleSent).toISOString().split('T')[0];
+        const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
+        const lastSentDate = lastSentNY.toISOString().split('T')[0];
         if (lastSentDate === today) {
           console.log(`✅ Bible verse already sent today for ${guild.name}`);
           continue;
@@ -2411,18 +2487,14 @@ async function sendDailyBibleVerse() {
       const channel = await client.channels.fetch(settings.bibleChannelId).catch(() => null);
       if (!channel || !channel.isTextBased() || !('send' in channel)) continue;
 
-      // Fetch verse from Bible API (free, no key required)
-      const response = await fetch("https://bible-api.com/?random=verse");
-      const data = await response.json();
+      // Fetch verse from api.bible
+      const verse = await getRandomBibleVerse();
 
-      const embed = new EmbedBuilder()
-        .setColor(0x9C27B0)
-        .setTitle("📖 Daily Scripture")
-        .setDescription(`**${data.reference}**\n${data.text}`)
-        .setFooter({ text: "Bible verse delivered" })
-        .setTimestamp();
+      // Format: "Book Chapter:Verse - Revised Standard Version (RSV)"
+      // "<VerseNumber> verse text"
+      const message = `${verse.reference} - Revised Standard Version (RSV)\n<${verse.verseNumber}> ${verse.text}`;
 
-      await channel.send({ embeds: [embed] });
+      await channel.send(message);
       
       // Update last sent timestamp
       await storage.updateServerSettings(guildId, {
@@ -2436,27 +2508,30 @@ async function sendDailyBibleVerse() {
   }
 }
 
-// Check every 10 minutes if bible verse needs to be sent
+// Check every 5 minutes if bible verse needs to be sent
 setInterval(async () => {
   const now = new Date();
-  const hour = now.getUTCHours();
-  const minute = now.getUTCMinutes();
+  // Get New York time
+  const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const nyHour = nyTime.getHours();
+  const nyMinute = nyTime.getMinutes();
   
-  // If it's exactly midnight (00:00), send the verse
-  if (hour === 0 && minute === 0) {
-    console.log("🕛 Midnight UTC - sending daily bible verses");
+  // If it's exactly midnight New York time (00:00 - 00:04), send the verse
+  if (nyHour === 0 && nyMinute < 5) {
+    console.log("🕛 Midnight New York time - sending daily bible verses");
     await sendDailyBibleVerse();
   }
   // Or if it's past midnight and verse hasn't been sent yet today, send it immediately
   else {
     // Check if any server needs the verse sent
+    const today = nyTime.toISOString().split('T')[0];
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.bibleChannelId) continue;
 
-      const today = now.toISOString().split('T')[0];
       if (settings.lastBibleSent) {
-        const lastSentDate = new Date(settings.lastBibleSent).toISOString().split('T')[0];
+        const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
+        const lastSentDate = lastSentNY.toISOString().split('T')[0];
         if (lastSentDate !== today) {
           console.log(`⚠️ Bible verse not sent yet today for ${guild.name}, sending now`);
           await sendDailyBibleVerse();
@@ -2470,7 +2545,7 @@ setInterval(async () => {
       }
     }
   }
-}, 600000); // Check every 10 minutes (600000 ms)
+}, 300000); // Check every 5 minutes (300000 ms)
 
 // Trading news and economic calendar (forex-style events)
 async function sendTradingNews() {
