@@ -2501,7 +2501,7 @@ async function sendDailyBibleVerse() {
         lastBibleSent: now,
       });
       
-      console.log(`✅ Sent daily bible verse to ${guild.name}`);
+      console.log(`✅ Sent daily como verse to ${guild.name}`);
     }
   } catch (error) {
     console.error("Error sending daily bible verse:", error);
