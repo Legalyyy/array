@@ -2926,19 +2926,27 @@ async function handleCodeCommand(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleTestApisCommand(interaction: ChatInputCommandInteraction) {
-  try {
-    await interaction.deferReply({ ephemeral: true });
+  // Defer immediately to prevent timeout
+  await interaction.deferReply({ ephemeral: true }).catch(err => {
+    console.error("Failed to defer reply:", err);
+  });
 
-    let bibleStatus = "❌ Not tested";
-    let forexStatus = "❌ Not tested";
+  try {
+    let bibleStatus = "⏳ Testing...";
+    let forexStatus = "⏳ Testing...";
     let bibleError = "";
     let forexError = "";
+    let bibleVerse: any = null;
+
+    // Send initial response
+    await interaction.editReply({ content: "🔍 Testing APIs, please wait..." }).catch(() => {});
 
     // Test Bible API
     try {
       console.log("🔍 Testing Bible API...");
       const verse = await getRandomBibleVerse();
-      bibleStatus = `✅ Working\n**Verse:** ${verse.reference}\n**Text:** ${verse.text.substring(0, 100)}...`;
+      bibleVerse = verse;
+      bibleStatus = `✅ Working\n**${verse.reference}**\n${verse.text.substring(0, 150)}...`;
     } catch (error: any) {
       console.error("Bible API test failed:", error);
       bibleStatus = "❌ Failed";
@@ -2949,123 +2957,90 @@ async function handleTestApisCommand(interaction: ChatInputCommandInteraction) {
     try {
       console.log("🔍 Testing Forex API...");
       const newsData = await fetchForexNews();
-      forexStatus = `✅ Working\n**Items fetched:** ${newsData.length}`;
+      const recentItems = newsData.slice(0, 5);
+      forexStatus = `✅ Working\n**Total items:** ${newsData.length}\n**Recent:** ${recentItems.map((n: any) => n.title?.substring(0, 30)).join(", ").substring(0, 100)}...`;
     } catch (error: any) {
       console.error("Forex API test failed:", error);
       forexStatus = "❌ Failed";
       forexError = error.message || String(error);
     }
 
-    // Send manual bible verse if working
-    if (bibleStatus.startsWith("✅")) {
-      try {
-        await sendDailyBibleVerse();
-        bibleStatus += "\n📨 Manual send triggered";
-      } catch (error) {
-        bibleStatus += "\n⚠️ Manual send failed";
-      }
-    }
-
-    // Send manual forex news if working
-    if (forexStatus.startsWith("✅")) {
-      try {
-        await sendTradingNews();
-        forexStatus += "\n📨 Manual send triggered";
-      } catch (error) {
-        forexStatus += "\n⚠️ Manual send failed";
-      }
-    }
-
-    // Collect bot statistics
-    const uptime = process.uptime();
-    const uptimeHours = Math.floor(uptime / 3600);
-    const uptimeMinutes = Math.floor((uptime % 3600) / 60);
-    const guilds = client.guilds.cache.size;
-    const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
-    const channels = client.channels.cache.size;
-    const memoryUsage = process.memoryUsage();
-    const memoryMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
-
-    // Get database stats
-    let totalRecaps = 0;
-    let totalAccessRequests = 0;
-    let totalCodes = 0;
-    try {
-      const allGuilds = Array.from(client.guilds.cache.keys());
-      for (const userId of client.users.cache.keys()) {
-        const recaps = await storage.getTradeRecapsByUser(userId);
-        totalRecaps += recaps.length;
-      }
-    } catch (error) {
-      console.log("Could not get recap stats:", error);
-    }
-
-    // Build stats embed for channel
+    // Build stats embed for user
     const statsEmbed = new EmbedBuilder()
-      .setColor(0x2B5BBA)
+      .setColor(bibleStatus.includes("✅") && forexStatus.includes("✅") ? 0x10B981 : bibleStatus.includes("❌") || forexStatus.includes("❌") ? 0xEF4444 : 0xF59E0B)
       .setTitle("🤖 API Test Results")
+      .setDescription("Quick API health check completed")
       .addFields(
         { name: "📖 Bible API", value: bibleStatus, inline: false },
         { name: "📊 Forex API", value: forexStatus, inline: false }
       )
+      .setFooter({ text: "Detailed stats sent to owner via DM" })
       .setTimestamp();
 
     if (bibleError) {
-      statsEmbed.addFields({ name: "Bible Error Details", value: `\`\`\`${bibleError.substring(0, 1000)}\`\`\``, inline: false });
+      statsEmbed.addFields({ name: "⚠️ Bible Error", value: `\`\`\`${bibleError.substring(0, 500)}\`\`\``, inline: false });
     }
     if (forexError) {
-      statsEmbed.addFields({ name: "Forex Error Details", value: `\`\`\`${forexError.substring(0, 1000)}\`\`\``, inline: false });
+      statsEmbed.addFields({ name: "⚠️ Forex Error", value: `\`\`\`${forexError.substring(0, 500)}\`\`\``, inline: false });
     }
 
-    await interaction.editReply({ embeds: [statsEmbed] });
+    await interaction.editReply({ embeds: [statsEmbed] }).catch(err => {
+      console.error("Failed to edit reply:", err);
+    });
 
-    // Send detailed stats to owner via DM
-    try {
-      const owner = await client.users.fetch(OWNER_USER_ID);
-      
-      const ownerEmbed = new EmbedBuilder()
-        .setColor(0x2B5BBA)
-        .setTitle("📊 Bot Statistics & API Status")
-        .setDescription("Complete bot health report")
-        .addFields(
-          { name: "⏱️ Uptime", value: `${uptimeHours}h ${uptimeMinutes}m`, inline: true },
-          { name: "🏢 Servers", value: guilds.toString(), inline: true },
-          { name: "👥 Total Members", value: totalMembers.toString(), inline: true },
-          { name: "📺 Channels", value: channels.toString(), inline: true },
-          { name: "💾 Memory Usage", value: `${memoryMB} MB`, inline: true },
-          { name: "📝 Total Recaps", value: totalRecaps.toString(), inline: true },
-          { name: "\u200b", value: "\u200b", inline: false },
-          { name: "📖 Bible API Status", value: bibleStatus, inline: false },
-          { name: "📊 Forex API Status", value: forexStatus, inline: false },
-          { name: "\u200b", value: "\u200b", inline: false },
-          { name: "🔧 Node Version", value: process.version, inline: true },
-          { name: "📦 Platform", value: process.platform, inline: true },
-          { name: "🏗️ Architecture", value: process.arch, inline: true }
-        )
-        .setFooter({ text: "Array Bot Health Monitor" })
-        .setTimestamp();
+    // Send detailed stats to owner via DM (async - don't wait)
+    setImmediate(async () => {
+      try {
+        const owner = await client.users.fetch(OWNER_USER_ID);
+        
+        // Collect detailed statistics
+        const uptime = process.uptime();
+        const uptimeHours = Math.floor(uptime / 3600);
+        const uptimeMinutes = Math.floor((uptime % 3600) / 60);
+        const guilds = client.guilds.cache.size;
+        const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+        const channels = client.channels.cache.size;
+        const memoryUsage = process.memoryUsage();
+        const memoryMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+        
+        const ownerEmbed = new EmbedBuilder()
+          .setColor(bibleStatus.includes("✅") && forexStatus.includes("✅") ? 0x10B981 : 0xEF4444)
+          .setTitle("📊 Bot Statistics & API Status")
+          .setDescription("Complete health report from /testapis command")
+          .addFields(
+            { name: "⏱️ Uptime", value: `${uptimeHours}h ${uptimeMinutes}m`, inline: true },
+            { name: "🏢 Servers", value: guilds.toString(), inline: true },
+            { name: "👥 Total Members", value: totalMembers.toString(), inline: true },
+            { name: "📺 Channels", value: channels.toString(), inline: true },
+            { name: "💾 Memory", value: `${memoryMB} MB`, inline: true },
+            { name: "🔧 Node", value: process.version, inline: true },
+            { name: "\u200b", value: "\u200b", inline: false },
+            { name: "📖 Bible API", value: bibleStatus.substring(0, 1024), inline: false },
+            { name: "📊 Forex API", value: forexStatus.substring(0, 1024), inline: false }
+          )
+          .setFooter({ text: "Array Bot • Health Monitor" })
+          .setTimestamp();
 
-      if (bibleError || forexError) {
-        let errorDetails = "";
-        if (bibleError) errorDetails += `**Bible API Error:**\n\`\`\`${bibleError.substring(0, 500)}\`\`\`\n`;
-        if (forexError) errorDetails += `**Forex API Error:**\n\`\`\`${forexError.substring(0, 500)}\`\`\``;
-        ownerEmbed.addFields({ name: "⚠️ Error Details", value: errorDetails, inline: false });
+        if (bibleError || forexError) {
+          let errorDetails = "";
+          if (bibleError) errorDetails += `**Bible:**\n\`\`\`${bibleError.substring(0, 400)}\`\`\`\n`;
+          if (forexError) errorDetails += `**Forex:**\n\`\`\`${forexError.substring(0, 400)}\`\`\``;
+          ownerEmbed.addFields({ name: "⚠️ Errors", value: errorDetails.substring(0, 1024), inline: false });
+        }
+
+        await owner.send({ embeds: [ownerEmbed] });
+        console.log(`✅ Sent detailed stats to owner ${OWNER_USER_ID}`);
+      } catch (dmError) {
+        console.error("Failed to send stats DM to owner:", dmError);
       }
-
-      await owner.send({ embeds: [ownerEmbed] });
-      console.log(`✅ Sent detailed stats to owner ${OWNER_USER_ID}`);
-    } catch (dmError) {
-      console.error("Failed to send stats DM to owner:", dmError);
-    }
+    });
 
   } catch (error) {
     console.error("Error in testapis command:", error);
     try {
-      if (interaction.deferred) {
-        await interaction.editReply({ content: "❌ Failed to test APIs. Check console for details." });
-      } else {
-        await interaction.reply({ content: "❌ Failed to test APIs.", ephemeral: true });
-      }
+      await interaction.editReply({ 
+        content: `❌ Error testing APIs:\n\`\`\`${String(error).substring(0, 500)}\`\`\`` 
+      }).catch(() => {});
     } catch (replyError) {
       console.error("Failed to send error reply:", replyError);
     }
