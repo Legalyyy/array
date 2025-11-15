@@ -153,6 +153,11 @@ const commands = [
   new SlashCommandBuilder()
     .setName("code")
     .setDescription("generate a unique access code for web login"),
+  
+  new SlashCommandBuilder()
+    .setName("testapis")
+    .setDescription("admin - test bible and forex APIs and send bot stats to owner")
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
 ];
 
 // Admin user IDs who can execute admin commands via chat
@@ -345,6 +350,9 @@ async function handleSlashCommand(interaction: ChatInputCommandInteraction) {
         break;
       case "code":
         await handleCodeCommand(interaction);
+        break;
+      case "testapis":
+        await handleTestApisCommand(interaction);
         break;
     }
   } catch (error) {
@@ -2425,76 +2433,15 @@ client.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
-// Fetch random verse from api.bible (RSV version)
+// Fetch random verse from bible-api.com (free, no API key needed)
 async function getRandomBibleVerse() {
-  const BIBLE_API_KEY = process.env.BIBLE_API_KEY;
-  if (!BIBLE_API_KEY) {
-    throw new Error("BIBLE_API_KEY not configured");
-  }
-
-  // RSV Bible ID on api.bible
-  const RSV_BIBLE_ID = "de4e12af7f28f599-02";
-  
-  // Get all books first
-  const booksResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/books`, {
-    headers: {
-      "api-key": BIBLE_API_KEY,
-    },
-  });
-  const booksData = await booksResponse.json();
-  
-  // Select a random book
-  const books = booksData.data.filter((book: any) => book.id !== "INT"); // Exclude introduction
-  const randomBook = books[Math.floor(Math.random() * books.length)];
-  
-  // Get chapters for this book
-  const chaptersResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/books/${randomBook.id}/chapters`, {
-    headers: {
-      "api-key": BIBLE_API_KEY,
-    },
-  });
-  const chaptersData = await chaptersResponse.json();
-  const chapters = chaptersData.data.filter((ch: any) => ch.number !== "intro");
-  const randomChapter = chapters[Math.floor(Math.random() * chapters.length)];
-  
-  // Get verses for this chapter
-  const versesResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}/verses`, {
-    headers: {
-      "api-key": BIBLE_API_KEY,
-    },
-  });
-  const versesData = await versesResponse.json();
-  const verses = versesData.data;
-  
-  if (verses.length === 0) {
-    // Fallback to chapter if no verses
-    const chapterResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}?content-type=text`, {
-      headers: {
-        "api-key": BIBLE_API_KEY,
-      },
-    });
-    const chapterData = await chapterResponse.json();
-    return {
-      reference: randomChapter.reference,
-      text: chapterData.data.content.substring(0, 500) + "...",
-      verseNumber: "1",
-    };
-  }
-  
-  const randomVerse = verses[Math.floor(Math.random() * verses.length)];
-  
-  // Get the full verse text
-  const verseResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/verses/${randomVerse.id}?content-type=text&include-verse-numbers=false`, {
-    headers: {
-      "api-key": BIBLE_API_KEY,
-    },
-  });
-  const verseData = await verseResponse.json();
+  const response = await fetch('https://bible-api.com/?passage=random');
+  const data = await response.json();
   
   return {
-    reference: randomVerse.reference,
-    text: verseData.data.content.trim(),
-    verseNumber: randomVerse.id.split('.').pop() || "",
+    reference: data.reference,
+    text: data.text.trim(),
+    translation: data.translation_name || "World English Bible",
   };
 }
 
@@ -2524,7 +2471,7 @@ async function sendDailyBibleVerse() {
       }
 
       const verse = await getRandomBibleVerse();
-      const message = `${verse.reference} - Revised Standard Version (RSV)\n<${verse.verseNumber}> ${verse.text}`;
+      const message = `📖 **${verse.reference}** - ${verse.translation}\n\n${verse.text}`;
 
       await channel.send(message);
       
@@ -2577,35 +2524,19 @@ setInterval(async () => {
 // Store last sent news IDs to avoid duplicates
 const sentNewsIds = new Set<string>();
 
-// Forex News Feed using ForexFactory API
+// Forex News Feed using ForexFactory API (fixed with native fetch)
 async function fetchForexNews(): Promise<any[]> {
-  return new Promise((resolve, reject) => {
-    const https = require('https');
-    const options = {
-      hostname: 'nfs.faireconomy.media',
-      path: '/ff_calendar_thisweek.json',
-      method: 'GET'
-    };
-
-    https.get(options, (res: any) => {
-      let data = '';
-      
-      res.on('data', (chunk: any) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const newsData = JSON.parse(data);
-          resolve(newsData);
-        } catch (error) {
-          reject(error);
-        }
-      });
-    }).on('error', (error: any) => {
-      reject(error);
-    });
-  });
+  try {
+    const response = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const newsData = await response.json();
+    return newsData;
+  } catch (error) {
+    console.error('Error fetching forex news:', error);
+    return [];
+  }
 }
 
 async function sendTradingNews() {
@@ -2891,6 +2822,110 @@ async function handleCodeCommand(interaction: ChatInputCommandInteraction) {
         await interaction.editReply({ content: "❌ Failed to generate access code. Please try again." });
       } else {
         await interaction.reply({ content: "❌ Failed to generate access code. Please try again.", ephemeral: true });
+      }
+    } catch (replyError) {
+      console.error("Failed to send error message:", replyError);
+    }
+  }
+}
+
+async function handleTestApisCommand(interaction: ChatInputCommandInteraction) {
+  try {
+    await interaction.deferReply({ ephemeral: true });
+
+    const startTime = Date.now();
+    const results: string[] = [];
+    
+    // Test Bible API
+    try {
+      console.log("🧪 Testing Bible API...");
+      await sendDailyBibleVerse();
+      results.push("✅ Bible API: Successfully sent daily verse");
+    } catch (bibleError) {
+      results.push(`❌ Bible API: ${bibleError instanceof Error ? bibleError.message : String(bibleError)}`);
+      console.error("Bible API test failed:", bibleError);
+    }
+
+    // Test Forex API
+    try {
+      console.log("🧪 Testing Forex API...");
+      await sendTradingNews();
+      results.push("✅ Forex API: Successfully sent trading news");
+    } catch (forexError) {
+      results.push(`❌ Forex API: ${forexError instanceof Error ? forexError.message : String(forexError)}`);
+      console.error("Forex API test failed:", forexError);
+    }
+
+    const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    // Collect bot statistics
+    const uptime = process.uptime();
+    const uptimeHours = Math.floor(uptime / 3600);
+    const uptimeMinutes = Math.floor((uptime % 3600) / 60);
+    const memoryUsage = process.memoryUsage();
+    const memoryMB = (memoryUsage.heapUsed / 1024 / 1024).toFixed(2);
+    const totalGuilds = client.guilds.cache.size;
+    const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+    const totalChannels = client.channels.cache.size;
+    const ping = client.ws.ping;
+
+    // Get configured servers count
+    let configuredBible = 0;
+    let configuredNews = 0;
+    let configuredVC = 0;
+    let configuredWelcome = 0;
+    
+    for (const [guildId] of client.guilds.cache) {
+      const settings = await storage.getServerSettings(guildId);
+      if (settings?.bibleChannelId) configuredBible++;
+      if (settings?.newsChannelId) configuredNews++;
+      if (settings?.vcTriggerChannelId) configuredVC++;
+      if (settings?.welcomeRoleId) configuredWelcome++;
+    }
+
+    // Get total stats from storage
+    const allAccessRequests = await storage.getAccessRequests();
+    const allAccessCodes = await storage.getAllAccessCodes();
+    const allKnowledge = await storage.getAllKnowledge();
+    const allLearnedFacts = await storage.getAllLearnedFacts();
+
+    const statsEmbed = new EmbedBuilder()
+      .setColor(0x2B5BBA)
+      .setTitle("🤖 Bot Statistics & Health Report")
+      .setDescription(`API Test Results:\n${results.join('\n')}\n\n**Test completed in ${elapsedTime}s**`)
+      .addFields(
+        { name: "🌐 Server Stats", value: `Servers: ${totalGuilds}\nTotal Users: ${totalUsers}\nChannels: ${totalChannels}`, inline: true },
+        { name: "⚙️ System", value: `Uptime: ${uptimeHours}h ${uptimeMinutes}m\nMemory: ${memoryMB} MB\nPing: ${ping}ms`, inline: true },
+        { name: "📊 Configurations", value: `Bible: ${configuredBible}\nNews: ${configuredNews}\nVC: ${configuredVC}\nWelcome: ${configuredWelcome}`, inline: true },
+        { name: "📈 Usage Stats", value: `Access Requests: ${allAccessRequests.length}\nAccess Codes: ${allAccessCodes.length}\nBot Knowledge: ${allKnowledge.length}\nLearned Facts: ${allLearnedFacts.length}`, inline: false },
+        { name: "🔧 Node Version", value: process.version, inline: true },
+        { name: "📅 Started", value: new Date(Date.now() - uptime * 1000).toLocaleString(), inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: `Requested by ${interaction.user.username}` });
+
+    // Send to owner (admin user)
+    const OWNER_ID = ADMIN_USER_IDS[0];
+    try {
+      const owner = await client.users.fetch(OWNER_ID);
+      await owner.send({ embeds: [statsEmbed] });
+      results.push(`✅ Stats sent to owner (${owner.username})`);
+    } catch (ownerError) {
+      results.push(`⚠️ Could not DM owner: ${ownerError instanceof Error ? ownerError.message : String(ownerError)}`);
+    }
+
+    // Reply to the admin who executed the command
+    await interaction.editReply({
+      content: `✅ API tests completed!\n\n${results.join('\n')}\n\nDetailed stats have been sent to the bot owner.`
+    });
+
+  } catch (error) {
+    console.error("Error in testapis command:", error);
+    try {
+      if (interaction.deferred) {
+        await interaction.editReply({ content: "❌ Failed to execute API tests. Check console for details." });
+      } else {
+        await interaction.reply({ content: "❌ Failed to execute API tests.", ephemeral: true });
       }
     } catch (replyError) {
       console.error("Failed to send error message:", replyError);
