@@ -844,11 +844,22 @@ async function handleGeneralCommand(message: Message, userMessage: string): Prom
   return false; // Command not handled
 }
 
-// Handle admin commands via natural language with AI intent detection
+// Timeout bochornoso responses for non-owners trying admin commands
+const bochornosoResponses = [
+  "Nah you don't have perms for that",
+  "Only rejected can do that",
+  "Nice try but no",
+  "You wish lol",
+  "Not happening",
+  "That's a no from me",
+  "Nope, admin only",
+  "Yeah no",
+];
+
 async function handleAdminCommand(message: Message, userMessage: string): Promise<boolean> {
   const lowerMessage = userMessage.toLowerCase();
+  const isOwner = ADMIN_USER_IDS.includes(message.author.id);
   
-  // Check for confirmation responses first
   if (lowerMessage === 'confirmar' || lowerMessage === 'si' || lowerMessage === 'sí' || lowerMessage === 'yes') {
     const pending = pendingConfirmations.get(message.author.id);
     if (pending && pending.expires > Date.now()) {
@@ -881,6 +892,33 @@ async function handleAdminCommand(message: Message, userMessage: string): Promis
       pendingConfirmations.delete(message.author.id);
       await message.reply(`❌ Action cancelled.`);
       return true;
+    }
+  }
+  
+  if (!isOwner && message.guild) {
+    const adminActions = [
+      'delete', 'clear', 'remove', 'borrar', 'eliminar', 'purge', 'clean', 'wipe',
+      'ban', 'kick', 'timeout', 'mute', 'silenciar',
+      'crea', 'create', 'make', 'add',
+      'cambiar', 'change', 'set', 'rename'
+    ];
+    
+    const hasAdminIntent = adminActions.some(action => lowerMessage.includes(action));
+    const hasModTarget = /canal|channel|rol|role|user|usuario|member|miembro/i.test(lowerMessage);
+    
+    if (hasAdminIntent && hasModTarget) {
+      try {
+        const member = await message.guild.members.fetch(message.author.id);
+        await member.timeout(60000, `Attempted admin command without permission`);
+        
+        const response = bochornosoResponses[Math.floor(Math.random() * bochornosoResponses.length)];
+        await message.reply(response);
+        
+        console.log(`⏱️ Timed out ${message.author.username} for attempting admin command`);
+        return true;
+      } catch (error) {
+        console.error("Error timing out user:", error);
+      }
     }
   }
   
@@ -2464,93 +2502,114 @@ async function getRandomBibleVerse() {
 async function sendDailyBibleVerse() {
   try {
     const now = new Date();
-    // Convert to New York timezone
     const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const today = nyTime.toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    const today = nyTime.toISOString().split('T')[0];
     
-    // Get all guilds and check their bible channel settings
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.bibleChannelId) continue;
 
-      // Check if verse was already sent today (NY time)
       if (settings.lastBibleSent) {
         const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
         const lastSentDate = lastSentNY.toISOString().split('T')[0];
         if (lastSentDate === today) {
-          console.log(`✅ Bible verse already sent today for ${guild.name}`);
           continue;
         }
       }
 
-      // Fetch channel
       const channel = await client.channels.fetch(settings.bibleChannelId).catch(() => null);
-      if (!channel || !channel.isTextBased() || !('send' in channel)) continue;
+      if (!channel || !channel.isTextBased() || !('send' in channel)) {
+        console.log(`⚠️ Bible channel invalid for ${guild.name}`);
+        continue;
+      }
 
-      // Fetch verse from api.bible
       const verse = await getRandomBibleVerse();
-
-      // Format: "Book Chapter:Verse - Revised Standard Version (RSV)"
-      // "<VerseNumber> verse text"
       const message = `${verse.reference} - Revised Standard Version (RSV)\n<${verse.verseNumber}> ${verse.text}`;
 
       await channel.send(message);
       
-      // Update last sent timestamp
       await storage.updateServerSettings(guildId, {
         lastBibleSent: now,
       });
       
-      console.log(`✅ Sent daily como verse to ${guild.name}`);
+      console.log(`✅ Sent daily bible verse to ${guild.name}`);
     }
   } catch (error) {
-    console.error("Error sending daily bible verse:", error);
+    console.error("❌ Error sending daily bible verse:", error);
   }
 }
 
 // Check every 5 minutes if bible verse needs to be sent
 setInterval(async () => {
   const now = new Date();
-  // Get New York time
   const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
   const nyHour = nyTime.getHours();
   const nyMinute = nyTime.getMinutes();
+  const today = nyTime.toISOString().split('T')[0];
   
-  // If it's exactly midnight New York time (00:00 - 00:04), send the verse
   if (nyHour === 0 && nyMinute < 5) {
-    console.log("🕛 Midnight New York time - sending daily bible verses");
     await sendDailyBibleVerse();
-  }
-  // Or if it's past midnight and verse hasn't been sent yet today, send it immediately
-  else {
-    // Check if any server needs the verse sent
-    const today = nyTime.toISOString().split('T')[0];
+  } else {
+    let needsSending = false;
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.bibleChannelId) continue;
 
-      if (settings.lastBibleSent) {
-        const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
-        const lastSentDate = lastSentNY.toISOString().split('T')[0];
-        if (lastSentDate !== today) {
-          console.log(`⚠️ Bible verse not sent yet today for ${guild.name}, sending now`);
-          await sendDailyBibleVerse();
-          break; // sendDailyBibleVerse will handle all guilds
-        }
-      } else {
-        // Never sent before, send it now
-        console.log(`⚠️ Bible verse never sent for ${guild.name}, sending now`);
-        await sendDailyBibleVerse();
+      if (!settings.lastBibleSent) {
+        needsSending = true;
+        break;
+      }
+
+      const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const lastSentDate = lastSentNY.toISOString().split('T')[0];
+      if (lastSentDate !== today) {
+        needsSending = true;
         break;
       }
     }
+    
+    if (needsSending) {
+      await sendDailyBibleVerse();
+    }
   }
-}, 300000); // Check every 5 minutes (300000 ms)
+}, 300000);
 
-// Trading news and economic calendar (forex-style events)
+// Store last sent news IDs to avoid duplicates
+const sentNewsIds = new Set<string>();
+
+// Forex News Feed using ForexFactory API
+async function fetchForexNews(): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    const options = {
+      hostname: 'nfs.faireconomy.media',
+      path: '/ff_calendar_thisweek.json',
+      method: 'GET'
+    };
+
+    https.get(options, (res: any) => {
+      let data = '';
+      
+      res.on('data', (chunk: any) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const newsData = JSON.parse(data);
+          resolve(newsData);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }).on('error', (error: any) => {
+      reject(error);
+    });
+  });
+}
+
 async function sendTradingNews() {
   try {
-    // Get all guilds and check their news channel settings
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.newsChannelId) continue;
@@ -2558,120 +2617,71 @@ async function sendTradingNews() {
       const channel = await client.channels.fetch(settings.newsChannelId).catch(() => null);
       if (!channel || !channel.isTextBased() || !('send' in channel)) continue;
 
-      // Fetch economic calendar events from free API (tradingeconomics.com alternative)
-      // Using Investing.com RSS feed for forex news
-      const newsResponse = await fetch("https://www.investing.com/rss/news.rss");
-      const newsText = await newsResponse.text();
+      const newsData = await fetchForexNews();
+      console.log(`📊 Fetched ${newsData.length} forex news items for ${guild.name}`);
       
-      // Parse RSS
-      const items = newsText.match(/<item>[\s\S]*?<\/item>/g) || [];
-      const newsItems = items.slice(0, 5).map(item => {
-        const title = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] || 
-                     item.match(/<title>(.*?)<\/title>/)?.[1] || "No title";
-        const link = item.match(/<link>(.*?)<\/link>/)?.[1] || "";
-        const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || "";
-        return { title, link, pubDate };
-      });
-
-      if (newsItems.length > 0) {
-        const embed = new EmbedBuilder()
-          .setColor(0xFF9900)
-          .setTitle("News & Market Updates")
-          .setDescription("Latest news from the markets.")
-          .setTimestamp();
-
-        newsItems.forEach((item, index) => {
-          const timeStr = item.pubDate ? new Date(item.pubDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : '';
-          embed.addFields({
-            name: `${index + 1}. ${item.title.substring(0, 100)}`,
-            value: `${timeStr ? `⏰ ${timeStr} UTC` : ''}\n[Read more](${item.link})`,
-          });
-        });
-
-        embed.setFooter({ text: "Updates every 15 minutes • Array" });
-
-        await channel.send({ embeds: [embed] });
-        console.log(`📰 Sent trading news to ${guild.name}`);
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching trading news:", error);
-  }
-}
-
-// Send economic calendar events
-async function sendEconomicCalendar() {
-  try {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-
-    for (const [guildId, guild] of client.guilds.cache) {
-      const settings = await storage.getServerSettings(guildId);
-      if (!settings || !settings.newsChannelId) continue;
-
-      const channel = await client.channels.fetch(settings.newsChannelId).catch(() => null);
-      if (!channel || !channel.isTextBased() || !('send' in channel)) continue;
-
-      // Fetch economic calendar from forexfactory.com RSS (economic events)
-      const calendarResponse = await fetch("https://www.forexfactory.com/calendar.xml");
-      const calendarText = await calendarResponse.text();
+      const now = new Date();
+      const nowTime = now.getTime();
       
-      // Parse XML for today's events
-      const events = calendarText.match(/<event>[\s\S]*?<\/event>/g) || [];
-      const todayEvents = events.slice(0, 10).map(event => {
-        const title = event.match(/<title>(.*?)<\/title>/)?.[1] || "";
-        const country = event.match(/<country>(.*?)<\/country>/)?.[1] || "";
-        const date = event.match(/<date>(.*?)<\/date>/)?.[1] || "";
-        const time = event.match(/<time>(.*?)<\/time>/)?.[1] || "";
-        const impact = event.match(/<impact>(.*?)<\/impact>/)?.[1] || "";
-        const forecast = event.match(/<forecast>(.*?)<\/forecast>/)?.[1] || "";
-        const previous = event.match(/<previous>(.*?)<\/previous>/)?.[1] || "";
+      const recentNews = newsData.filter((item: any) => {
+        const newsTime = new Date(item.date).getTime();
+        const timeDiff = nowTime - newsTime;
+        const newsId = `${item.date}_${item.title}`;
         
-        return { title, country, date, time, impact, forecast, previous };
+        return timeDiff >= 0 && timeDiff <= 900000 && !sentNewsIds.has(newsId);
       });
 
-      if (todayEvents.length > 0) {
+      console.log(`🔔 Found ${recentNews.length} new forex news items to send`);
+
+      for (const newsItem of recentNews) {
+        const newsId = `${newsItem.date}_${newsItem.title}`;
+        
+        let color = 0x6b7280;
+        if (newsItem.impact === 'High') color = 0xef4444;
+        else if (newsItem.impact === 'Medium') color = 0xf59e0b;
+        
         const embed = new EmbedBuilder()
-          .setColor(0x00FF00)
-          .setTitle("📅 Today's Economic Calendar")
-          .setDescription(`Economic events for ${today}`)
-          .setTimestamp();
+          .setColor(color)
+          .setTitle(`📰 ${newsItem.title}`)
+          .setDescription(newsItem.country || 'Global')
+          .addFields(
+            { name: '🕐 Time', value: new Date(newsItem.date).toLocaleString(), inline: true },
+            { name: '⚡ Impact', value: newsItem.impact || 'N/A', inline: true },
+            { name: '📊 Forecast', value: newsItem.forecast || 'N/A', inline: true },
+            { name: '📈 Previous', value: newsItem.previous || 'N/A', inline: true }
+          )
+          .setTimestamp()
+          .setFooter({ text: 'Array Forex News Feed' });
 
-        todayEvents.forEach((event, index) => {
-          const impactEmoji = event.impact === 'High' ? '🔴' : event.impact === 'Medium' ? '🟡' : '⚪';
-          const forecastStr = event.forecast ? `Forecast: ${event.forecast}` : '';
-          const previousStr = event.previous ? `Previous: ${event.previous}` : '';
-          
-          embed.addFields({
-            name: `${impactEmoji} ${event.country} - ${event.title}`,
-            value: `⏰ ${event.time} UTC\n${forecastStr}${forecastStr && previousStr ? ' | ' : ''}${previousStr}`,
-            inline: false,
-          });
-        });
-
-        embed.setFooter({ text: "Economic Calendar • fxfactory" });
-
-        await channel.send({ embeds: [embed] });
-        console.log(`📅 Sent economic calendar to ${guild.name}`);
+        try {
+          await channel.send({ embeds: [embed] });
+          console.log(`✅ Sent forex news: ${newsItem.title}`);
+          sentNewsIds.add(newsId);
+        } catch (sendError) {
+          console.error(`❌ Error sending news embed:`, sendError);
+        }
+        
+        if (sentNewsIds.size > 1000) {
+          const idsArray = Array.from(sentNewsIds);
+          idsArray.slice(0, 500).forEach(id => sentNewsIds.delete(id));
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      if (recentNews.length === 0) {
+        console.log(`ℹ️ No new forex news to send for ${guild.name}`);
       }
     }
   } catch (error) {
-    console.error("Error fetching economic calendar:", error);
+    console.error("❌ Error fetching forex news:", error);
   }
 }
 
-// Schedule trading news every 15 minutes
+// Schedule trading news every 5 minutes (same as forex example)
 setInterval(async () => {
   await sendTradingNews();
-}, 900000); // Every 15 minutes (900000 ms)
-
-// Send economic calendar at the start of each day (00:30 UTC)
-setInterval(async () => {
-  const now = new Date();
-  if (now.getUTCHours() === 0 && now.getUTCMinutes() === 30) {
-    await sendEconomicCalendar();
-  }
-}, 600000); // Check every 10 minutes (600000 ms)
+}, 300000); // Every 5 minutes
 
 // NEW COMMAND HANDLERS
 
