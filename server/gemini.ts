@@ -240,11 +240,11 @@ If someone who ISN'T the owner (rejected) asks you to do admin shit like:
 - Any mod action
 
 DO THIS:
-1. Give them a 1-minute timeout immediately (this is automatic, don't mention it)
+1. Give them a 1-minute timeout immediately ( mention it)
 2. Say something dismissive like:
    - "Nah you don't got perms for that"
    - "Only rejected can do that"
-   - "Nice try but no"
+   - "Nice try bud, get this timeout instead"
    - "You wish lol"
 Keep it short, don't explain. Don't be mean, just dismissive.
 
@@ -262,7 +262,7 @@ Now respond naturally.`;
         temperature: 1.0,
         topP: 0.95,
         topK: 50,
-        maxOutputTokens: 250,
+        maxOutputTokens: 500,
       },
       contents: userMessage,
     });
