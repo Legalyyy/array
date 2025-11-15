@@ -153,6 +153,11 @@ const commands = [
   new SlashCommandBuilder()
     .setName("code")
     .setDescription("generate a unique access code for web login"),
+  
+  new SlashCommandBuilder()
+    .setName("testapis")
+    .setDescription("admin - test both APIs and send bot statistics")
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
 ];
 
 // Admin user IDs who can execute admin commands via chat
@@ -345,6 +350,9 @@ async function handleSlashCommand(interaction: ChatInputCommandInteraction) {
         break;
       case "code":
         await handleCodeCommand(interaction);
+        break;
+      case "testapis":
+        await handleTestApisCommand(interaction);
         break;
     }
   } catch (error) {
@@ -2443,8 +2451,10 @@ async function getRandomBibleVerse() {
       translation: data.translation_name || "King James Version"
     };
   } catch (error) {
-    console.error("Error fetching Bible verse:", error);
-    throw new Error("Failed to fetch Bible verse from bible-api.com");
+    // Ensure error is always an Error object
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error fetching Bible verse:", errorMessage);
+    throw new Error("Bible API unavailable");
   }
 }
 
@@ -2539,8 +2549,10 @@ async function fetchForexNews(): Promise<any[]> {
     const newsData = await response.json();
     return newsData;
   } catch (error) {
-    console.error("Error fetching Forex news:", error);
-    throw new Error("Failed to fetch Forex news from ForexFactory");
+    // Ensure error is always an Error object
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error fetching Forex news:", errorMessage);
+    throw new Error("Forex API unavailable");
   }
 }
 
@@ -2830,6 +2842,140 @@ async function handleCodeCommand(interaction: ChatInputCommandInteraction) {
       }
     } catch (replyError) {
       console.error("Failed to send error message:", replyError);
+    }
+  }
+}
+
+// Handle /testapis command - Admin only
+async function handleTestApisCommand(interaction: ChatInputCommandInteraction) {
+  try {
+    const OWNER_ID = "404315406111604747";
+    
+    // Only allow the bot owner to use this command
+    if (interaction.user.id !== OWNER_ID) {
+      await interaction.reply({ 
+        content: "❌ This command is only available to the bot owner.", 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Defer reply since this will take time
+    await interaction.deferReply({ ephemeral: true });
+
+    // Test Bible API
+    let bibleTestResult = "✅ Success";
+    let bibleVerse: any = null;
+    try {
+      bibleVerse = await getRandomBibleVerse();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Bible API test failed:", errorMessage);
+      bibleTestResult = `❌ Failed`;
+    }
+
+    // Test Forex API
+    let forexTestResult = "✅ Success";
+    let forexNewsCount = 0;
+    try {
+      const forexData = await fetchForexNews();
+      forexNewsCount = forexData.length;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Forex API test failed:", errorMessage);
+      forexTestResult = `❌ Failed`;
+    }
+
+    // Collect bot statistics
+    const totalGuilds = client.guilds.cache.size;
+    const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+    const totalChannels = client.channels.cache.size;
+    
+    const uptime = process.uptime();
+    const uptimeHours = Math.floor(uptime / 3600);
+    const uptimeMinutes = Math.floor((uptime % 3600) / 60);
+    
+    const memoryUsage = process.memoryUsage();
+    const memoryMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+    
+    const ping = client.ws.ping;
+
+    // Count configured servers
+    let configuredBible = 0;
+    let configuredNews = 0;
+    let configuredVC = 0;
+    let configuredWelcome = 0;
+    
+    for (const [guildId, guild] of client.guilds.cache) {
+      const settings = await storage.getServerSettings(guildId);
+      if (settings?.bibleChannelId) configuredBible++;
+      if (settings?.newsChannelId) configuredNews++;
+      if (settings?.vcTriggerChannelId) configuredVC++;
+      if (settings?.welcomeRoleId) configuredWelcome++;
+    }
+
+    // Get storage stats
+    const allAccessRequests = await storage.getAccessRequests();
+    const allAccessCodes = await storage.getAllAccessCodes();
+    const allKnowledge = await storage.getAllKnowledge();
+    const allLearnedFacts = await storage.getAllLearnedFacts();
+
+    // Create comprehensive stats embed
+    const statsEmbed = new EmbedBuilder()
+      .setColor(0x2B5BBA)
+      .setTitle("🤖 Bot Statistics & Health Report")
+      .setDescription("Complete system status and API test results")
+      .addFields(
+        { name: "🧪 API Test Results", value: `**Bible API:** ${bibleTestResult}\n**Forex API:** ${forexTestResult}${forexNewsCount > 0 ? ` (${forexNewsCount} items)` : ""}`, inline: false },
+        { name: "🌐 Server Stats", value: `Servers: ${totalGuilds}\nTotal Users: ${totalUsers}\nChannels: ${totalChannels}`, inline: true },
+        { name: "⚙️ System", value: `Uptime: ${uptimeHours}h ${uptimeMinutes}m\nMemory: ${memoryMB} MB\nPing: ${ping}ms`, inline: true },
+        { name: "📊 Configurations", value: `Bible: ${configuredBible}\nNews: ${configuredNews}\nVC: ${configuredVC}\nWelcome: ${configuredWelcome}`, inline: true },
+        { name: "📈 Usage Stats", value: `Access Requests: ${allAccessRequests.length}\nAccess Codes: ${allAccessCodes.length}\nBot Knowledge: ${allKnowledge.length}\nLearned Facts: ${allLearnedFacts.length}`, inline: false },
+        { name: "🔧 Node Version", value: process.version, inline: true },
+        { name: "📅 Started", value: new Date(Date.now() - uptime * 1000).toLocaleString(), inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: "Admin Command" });
+
+    // If Bible test was successful, add sample verse
+    if (bibleVerse) {
+      const verseEmbed = new EmbedBuilder()
+        .setColor(0x10B981)
+        .setTitle("📖 Sample Bible Verse")
+        .setDescription(`**${bibleVerse.reference}** - ${bibleVerse.translation}\n\n${bibleVerse.text.substring(0, 1000)}${bibleVerse.text.length > 1000 ? '...' : ''}`)
+        .setTimestamp();
+
+      // Send to owner via DM
+      try {
+        await interaction.user.send({ embeds: [statsEmbed, verseEmbed] });
+        await interaction.editReply({ content: "✅ API tests complete! Check your DMs for detailed statistics." });
+      } catch (dmError) {
+        // If DM fails, send in channel
+        await interaction.editReply({ embeds: [statsEmbed, verseEmbed] });
+      }
+    } else {
+      // Send just stats if Bible API failed
+      try {
+        await interaction.user.send({ embeds: [statsEmbed] });
+        await interaction.editReply({ content: "⚠️ API tests complete with errors. Check your DMs for detailed statistics." });
+      } catch (dmError) {
+        await interaction.editReply({ embeds: [statsEmbed] });
+      }
+    }
+
+    console.log(`✅ ${interaction.user.username} ran /testapis command`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error in testapis command:", errorMessage);
+    try {
+      if (interaction.deferred) {
+        await interaction.editReply({ content: "❌ Command failed. Please try again." });
+      } else {
+        await interaction.reply({ content: "❌ Command failed. Please try again.", ephemeral: true });
+      }
+    } catch (replyError) {
+      const replyErrorMessage = replyError instanceof Error ? replyError.message : String(replyError);
+      console.error("Failed to send error message:", replyErrorMessage);
     }
   }
 }
