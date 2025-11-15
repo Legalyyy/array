@@ -2443,9 +2443,10 @@ async function getRandomBibleVerse() {
 
   // RSV Bible ID on api.bible
   const RSV_BIBLE_ID = "de4e12af7f28f599-02";
+  const BASE_URL = "https://api.scripture.api.bible/v1";
   
   // Get all books first
-  const booksResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/books`, {
+  const booksResponse = await fetch(`${BASE_URL}/bibles/${RSV_BIBLE_ID}/books`, {
     headers: {
       "api-key": BIBLE_API_KEY,
     },
@@ -2463,7 +2464,7 @@ async function getRandomBibleVerse() {
   const randomBook = books[Math.floor(Math.random() * books.length)];
   
   // Get chapters for this book
-  const chaptersResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/books/${randomBook.id}/chapters`, {
+  const chaptersResponse = await fetch(`${BASE_URL}/bibles/${RSV_BIBLE_ID}/books/${randomBook.id}/chapters`, {
     headers: {
       "api-key": BIBLE_API_KEY,
     },
@@ -2478,7 +2479,7 @@ async function getRandomBibleVerse() {
   const randomChapter = chapters[Math.floor(Math.random() * chapters.length)];
   
   // Get verses for this chapter
-  const versesResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}/verses`, {
+  const versesResponse = await fetch(`${BASE_URL}/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}/verses`, {
     headers: {
       "api-key": BIBLE_API_KEY,
     },
@@ -2493,7 +2494,7 @@ async function getRandomBibleVerse() {
   
   if (verses.length === 0) {
     // Fallback to chapter if no verses
-    const chapterResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}?content-type=text`, {
+    const chapterResponse = await fetch(`${BASE_URL}/bibles/${RSV_BIBLE_ID}/chapters/${randomChapter.id}?content-type=text`, {
       headers: {
         "api-key": BIBLE_API_KEY,
       },
@@ -2514,7 +2515,7 @@ async function getRandomBibleVerse() {
   const randomVerse = verses[Math.floor(Math.random() * verses.length)];
   
   // Get the full verse text
-  const verseResponse = await fetch(`https://api.bible/v1/bibles/${RSV_BIBLE_ID}/verses/${randomVerse.id}?content-type=text&include-verse-numbers=false`, {
+  const verseResponse = await fetch(`${BASE_URL}/bibles/${RSV_BIBLE_ID}/verses/${randomVerse.id}?content-type=text&include-verse-numbers=false`, {
     headers: {
       "api-key": BIBLE_API_KEY,
     },
