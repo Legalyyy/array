@@ -2458,59 +2458,105 @@ async function getRandomBibleVerse() {
   }
 }
 
-// Daily bible verse sender (runs at midnight New York time)
+// List of motivational keywords (for traders)
+const motivationalKeywords = [
+  "wisdom", "strength", "courage", "faith", "trust", "patience",
+  "endurance", "persevere", "perseverance", "confidence", 
+  "guidance", "hope", "peace"
+];
+
+// Function to get a motivational verse from the API
+async function getMotivationalBibleVerse() {
+  try {
+    const verse = await getRandomBibleVerse(); // your existing API
+
+    if (!verse || !verse.text) return await getMotivationalBibleVerse();
+
+    const lower = verse.text.toLowerCase();
+
+    const isMotivational = motivationalKeywords.some(keyword =>
+      lower.includes(keyword)
+    );
+
+    if (isMotivational) {
+      return verse;
+    }
+
+    // If not motivational, get another one
+    return await getMotivationalBibleVerse();
+
+  } catch (error) {
+    console.error("❌ Error fetching motivational verse:", error);
+    return null;
+  }
+}
+
+// Sends the verse to all guilds
 async function sendDailyBibleVerse() {
   try {
     const now = new Date();
     const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
     const today = nyTime.toISOString().split('T')[0];
-    
+
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.bibleChannelId) continue;
 
       if (settings.lastBibleSent) {
-        const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
-        const lastSentDate = lastSentNY.toISOString().split('T')[0];
-        if (lastSentDate === today) {
-          continue;
-        }
+        const lastSentNY = new Date(
+          settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" })
+        );
+        if (lastSentNY.toISOString().split('T')[0] === today) continue;
       }
 
       const channel = await client.channels.fetch(settings.bibleChannelId).catch(() => null);
       if (!channel || !channel.isTextBased() || !('send' in channel)) {
-        console.log(`⚠️ Bible channel invalid for ${guild.name}`);
+        console.log(`⚠️ Invalid Bible channel for ${guild.name}`);
         continue;
       }
 
-      const verse = await getRandomBibleVerse();
-      const message = `📖 **${verse.reference}** - ${verse.translation}\n\n${verse.text}`;
+      const verse = await getMotivationalBibleVerse();
+      if (!verse) {
+        console.log("❌ Could not get a valid motivational verse");
+        continue;
+      }
 
-      await channel.send(message);
-      
-      await storage.updateServerSettings(guildId, {
-        lastBibleSent: now,
-      });
-      
-      console.log(`✅ Sent daily bible verse to ${guild.name}`);
+      // Create the embed
+      const embed = new MessageEmbed()
+        .setColor("#00b0f4")
+        .setTitle("**📖 Daily Scripture**")
+        .setDescription("Lecture for the day")
+        .addFields(
+          { name: `**${verse.reference}**`, value: verse.translation, inline: false },
+          { name: "Verse:", value: verse.text, inline: false }
+        )
+        .setFooter("array bible")
+        .setTimestamp();
+
+      await channel.send({ embeds: [embed] });
+
+      await storage.updateServerSettings(guildId, { lastBibleSent: now });
+
+      console.log(`✅ Sent daily Bible verse to ${guild.name}`);
     }
   } catch (error) {
-    console.error("❌ Error sending daily bible verse:", error);
+    console.error("❌ Error sending daily Bible verse:", error);
   }
 }
 
-// Check every 5 minutes if bible verse needs to be sent
+// Interval check every 5 minutes
 setInterval(async () => {
   const now = new Date();
   const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
   const nyHour = nyTime.getHours();
   const nyMinute = nyTime.getMinutes();
   const today = nyTime.toISOString().split('T')[0];
-  
+
   if (nyHour === 0 && nyMinute < 5) {
     await sendDailyBibleVerse();
   } else {
     let needsSending = false;
+
     for (const [guildId, guild] of client.guilds.cache) {
       const settings = await storage.getServerSettings(guildId);
       if (!settings || !settings.bibleChannelId) continue;
@@ -2520,17 +2566,16 @@ setInterval(async () => {
         break;
       }
 
-      const lastSentNY = new Date(settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const lastSentDate = lastSentNY.toISOString().split('T')[0];
-      if (lastSentDate !== today) {
+      const lastSentNY = new Date(
+        settings.lastBibleSent.toLocaleString("en-US", { timeZone: "America/New_York" })
+      );
+      if (lastSentNY.toISOString().split('T')[0] !== today) {
         needsSending = true;
         break;
       }
     }
-    
-    if (needsSending) {
-      await sendDailyBibleVerse();
-    }
+
+    if (needsSending) await sendDailyBibleVerse();
   }
 }, 300000);
 
