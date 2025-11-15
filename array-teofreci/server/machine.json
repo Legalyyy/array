@@ -1,0 +1,241 @@
+{
+  "metadata": {
+    "created": "2024-11-01",
+    "version": "1.0.0",
+    "description": "Dynamic learning system for the bot - learns from all user interactions and server events"
+  },
+  "user_facts": {
+    "404315406111604747": {
+      "username": "order.rejected",
+      "messageCount": 7,
+      "lastSeen": "2025-11-06T05:18:50.863Z"
+    },
+    "444674179116302346": {
+      "username": "isutdylots"
+    },
+    "838657384137883648": {
+      "username": "ukgreek_",
+      "firstSeen": "2025-11-06T06:01:14.444Z",
+      "messageCount": 1,
+      "lastSeen": "2025-11-06T06:01:14.444Z"
+    }
+  },
+  "server_events": [
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T06:01:14.446Z",
+      "data": {
+        "userId": "838657384137883648",
+        "username": "ukgreek_",
+        "messagePreview": "kick",
+        "channelId": "1433144474686722159",
+        "mode": "storytelling"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:18:50.864Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "CLEAR 8",
+        "channelId": "1433325742376353825",
+        "mode": "laid-back"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:18:14.191Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "fuck u dawg",
+        "channelId": "1433325742376353825",
+        "mode": "sarcastic"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:07:50.222Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "no, of",
+        "channelId": "1433144474686722159",
+        "mode": "motivational"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:06:05.629Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "No, im telling you, you shouldn't talk about permi",
+        "channelId": "1433144474686722159",
+        "mode": "storytelling"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:05:35.239Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "you shouldn't talk about permissions stuff, thats ",
+        "channelId": "1433144474686722159",
+        "mode": "energetic"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:04:43.884Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "can i have sum info bout the server?",
+        "channelId": "1433144474686722159",
+        "mode": "thoughtful"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-06T05:04:20.690Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "whats up nigga?",
+        "channelId": "1433144474686722159",
+        "mode": "chill"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:09:59.176Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "nigga why u talking 3 times.",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:09:48.311Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "what odes it mean when we go back to that abs zone",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:09:27.087Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "previous absorption zone <1hr old",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:08:48.262Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "historical absorption zone",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:08:29.337Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "absorption zone",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:08:14.200Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:08:13.404Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T05:08:13.189Z",
+      "data": {
+        "userId": "444674179116302346",
+        "username": "isutdylots",
+        "messagePreview": "",
+        "channelId": "1433325742376353825"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T04:54:19.812Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "are you good nigga",
+        "channelId": "1433144474686722159"
+      }
+    },
+    {
+      "type": "conversation",
+      "timestamp": "2025-11-02T03:38:58.285Z",
+      "data": {
+        "userId": "404315406111604747",
+        "username": "order.rejected",
+        "messagePreview": "hola",
+        "channelId": "1433144474686722159"
+      }
+    }
+  ],
+  "conversation_patterns": {
+    "common_topics": {},
+    "response_styles": []
+  },
+  "learned_relationships": {},
+  "temporal_data": {
+    "recent_topics": [
+      "kick",
+      "CLEAR 8",
+      "fuck u dawg",
+      "no, of",
+      "No, im telling you, you shouldn't talk about permissions, period.",
+      "you shouldn't talk about permissions stuff, thats private isn't it?",
+      "can i have sum info bout the server?",
+      "whats up nigga?",
+      "nigga why u talking 3 times.",
+      "what odes it mean when we go back to that abs zone",
+      "previous absorption zone <1hr old",
+      "historical absorption zone",
+      "absorption zone",
+      "",
+      "",
+      "",
+      "are you good nigga",
+      "hola"
+    ],
+    "trending_discussions": []
+  }
+}
