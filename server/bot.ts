@@ -2545,7 +2545,7 @@ async function sendDailyBibleVerse() {
       // Create the embed
       const embed = new EmbedBuilder()
         .setColor(050000)
-        .setTitle("📖 Daily Scripture")
+        .setTitle("<:arraybible:1439761275633537095> Daily Scripture")
         .setDescription(`**${verse.reference}**`)
         .addFields(
           { name: "📜 Verse", value: verse.text, inline: false }
@@ -2655,7 +2655,7 @@ async function sendTradingNews() {
         
         const embed = new EmbedBuilder()
           .setColor(color)
-          .setTitle(`📰 ${newsItem.title}`)
+          .setTitle(`<:arraynews:1439761932419727460> ${newsItem.title}`)
           .setDescription(newsItem.country || 'Global')
           .addFields(
             { name: '🕐 Time', value: new Date(newsItem.date).toLocaleString(), inline: true },
