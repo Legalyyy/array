@@ -2544,13 +2544,13 @@ async function sendDailyBibleVerse() {
 
       // Create the embed
       const embed = new EmbedBuilder()
-        .setColor(0x00b0f4)
+        .setColor(050000)
         .setTitle("📖 Daily Scripture")
         .setDescription(`**${verse.reference}**`)
         .addFields(
           { name: "📜 Verse", value: verse.text, inline: false }
         )
-        .setFooter({ text: "array bible" })
+        .setFooter({ text: "Array Bible Feed" })
         .setTimestamp();
 
       await channel.send({ embeds: [embed] });
@@ -2664,7 +2664,7 @@ async function sendTradingNews() {
             { name: '📈 Previous', value: newsItem.previous || 'N/A', inline: true }
           )
           .setTimestamp()
-          .setFooter({ text: 'Array Forex News Feed' });
+          .setFooter({ text: 'Array News Feed' });
 
         try {
           await channel.send({ embeds: [embed] });
