@@ -2433,10 +2433,11 @@ client.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
-// Fetch random verse from bible-api.com (no API key required)
-async function getRandomBibleVerse() {
+// Fetch verse of the day from NET Bible API (no API key required, very reliable)
+async function getDailyBibleVerse() {
   try {
-    const response = await fetch('https://bible-api.com/?random=verse');
+    // NET Bible API has a built-in "verse of the day" endpoint
+    const response = await fetch('https://labs.bible.org/api/?passage=votd&type=json');
     
     if (!response.ok) {
       throw new Error(`Bible API responded with status: ${response.status}`);
@@ -2444,16 +2445,43 @@ async function getRandomBibleVerse() {
     
     const data = await response.json();
     
+    // NET Bible API returns an array with one verse for VOTD
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      throw new Error('Invalid response from Bible API');
+    }
+    
+    const verse = data[0];
+    
     return {
-      reference: data.reference,
-      text: data.text.trim(),
-      verseNumber: data.verses[0]?.verse?.toString() || "1",
-      translation: data.translation_name || "King James Version"
+      reference: `${verse.bookname} ${verse.chapter}:${verse.verse}`,
+      text: verse.text.trim(),
+      verseNumber: verse.verse.toString(),
+      translation: "NET Bible"
     };
   } catch (error) {
-    // Ensure error is always an Error object
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error fetching Bible verse:", errorMessage);
+    console.error("❌ Error fetching Bible verse:", errorMessage);
+    
+    // Fallback to random verse if VOTD fails
+    try {
+      console.log("⚠️ Trying fallback random verse API...");
+      const fallbackResponse = await fetch('https://labs.bible.org/api/?passage=random&type=json');
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackData && Array.isArray(fallbackData) && fallbackData.length > 0) {
+          const verse = fallbackData[0];
+          return {
+            reference: `${verse.bookname} ${verse.chapter}:${verse.verse}`,
+            text: verse.text.trim(),
+            verseNumber: verse.verse.toString(),
+            translation: "NET Bible"
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error("❌ Fallback API also failed:", fallbackError);
+    }
+    
     throw new Error("Bible API unavailable");
   }
 }
@@ -2465,25 +2493,18 @@ const motivationalKeywords = [
   "guidance", "hope", "peace"
 ];
 
-// Function to get a motivational verse from the API
+// Function to get the daily motivational verse
 async function getMotivationalBibleVerse() {
   try {
-    const verse = await getRandomBibleVerse(); // your existing API
+    // Use the NET Bible API's verse of the day - it's already curated and motivational
+    const verse = await getDailyBibleVerse();
 
-    if (!verse || !verse.text) return await getMotivationalBibleVerse();
-
-    const lower = verse.text.toLowerCase();
-
-    const isMotivational = motivationalKeywords.some(keyword =>
-      lower.includes(keyword)
-    );
-
-    if (isMotivational) {
-      return verse;
+    if (!verse || !verse.text) {
+      console.error("❌ Could not get verse from primary API");
+      return null;
     }
 
-    // If not motivational, get another one
-    return await getMotivationalBibleVerse();
+    return verse;
 
   } catch (error) {
     console.error("❌ Error fetching motivational verse:", error);
@@ -2522,15 +2543,15 @@ async function sendDailyBibleVerse() {
       }
 
       // Create the embed
-      const embed = new MessageEmbed()
-        .setColor("#00b0f4")
-        .setTitle("**📖 Daily Scripture**")
-        .setDescription("Lecture for the day")
+      const embed = new EmbedBuilder()
+        .setColor(0x00b0f4)
+        .setTitle("📖 Daily Scripture")
+        .setDescription("Verse of the Day")
         .addFields(
-          { name: `**${verse.reference}**`, value: verse.translation, inline: false },
-          { name: "Verse:", value: verse.text, inline: false }
+          { name: `**${verse.reference}**`, value: `*${verse.translation}*`, inline: false },
+          { name: "📜 Verse", value: verse.text, inline: false }
         )
-        .setFooter("array bible")
+        .setFooter({ text: "array bible" })
         .setTimestamp();
 
       await channel.send({ embeds: [embed] });
@@ -2912,7 +2933,7 @@ async function handleTestApisCommand(interaction: ChatInputCommandInteraction) {
     let bibleTestResult = "✅ Success";
     let bibleVerse: any = null;
     try {
-      bibleVerse = await getRandomBibleVerse();
+      bibleVerse = await getDailyBibleVerse();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Bible API test failed:", errorMessage);
