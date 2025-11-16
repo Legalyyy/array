@@ -2546,9 +2546,8 @@ async function sendDailyBibleVerse() {
       const embed = new EmbedBuilder()
         .setColor(0x00b0f4)
         .setTitle("📖 Daily Scripture")
-        .setDescription("Verse of the Day")
+        .setDescription(`**${verse.reference}**`)
         .addFields(
-          { name: `**${verse.reference}**`, value: `*${verse.translation}*`, inline: false },
           { name: "📜 Verse", value: verse.text, inline: false }
         )
         .setFooter({ text: "array bible" })
